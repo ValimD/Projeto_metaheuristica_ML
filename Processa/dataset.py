@@ -1,6 +1,6 @@
 import os
 
-class Problem():
+class Problema():
     def __init__(self, dataset):
         try:
             # Pegando o diretório atual.
@@ -14,14 +14,14 @@ class Problem():
                 first_line = lines[0].strip().split()
                 self.o, self.i, self.a = int(first_line[0]), int(first_line[1]), int(first_line[2])
 
-                # Pedidos.
+                # Pedidos - o linhas no formato k i q ..., sendo k a quantidade de itens no pedido, e i q o par item quantidade.
                 self.orders = []
                 for i in range(self.o):
                     order_line = lines[i + 1].strip().split()
                     order = {int(order_line[1 + k * 2]): int(order_line[2 + k * 2]) for k in range(int(order_line[0]))}
                     self.orders.append(order)
 
-                # Corredores.
+                # Corredores - a linhas no formato k i q ..., sendo k a quantidade de itens no corredor, e i q o par item quantidade.
                 self.aisles = []
                 for i in range(self.a):
                     aisle_line = lines[i + 1 + self.o].strip().split()
@@ -36,9 +36,10 @@ class Problem():
                 self.result = {"dataset": dataset, "orders": [], "aisles": [], "time": 0}
         except FileNotFoundError:
             print("Dataset não existe.")
+            exit()
 
     # Descrição: função que imprime os dados tratados do dataset.
-    def printData(self):
+    def imprimeProblema(self):
         print(f"o = {self.o}, i = {self.i}, a = {self.a}")
         print(f"\nPedidos: ")
         for i in range(len(self.orders)):
@@ -48,16 +49,14 @@ class Problem():
             print(f"{i}: {self.aisles[i]}")
         print(f"\nLimite inferior = {self.lb}, limite superior = {self.ub}")
 
-    # Descrição: função que imprime alguns dos dados que compõem a solução.
-    def printResults(self):
-        print(f"Dataset sendo utilizado: {self.result["dataset"]}")
-        print(f"Pedidos selecionados: {self.result["orders"]}, corredores selecionados: {self.result["aisles"]}")
-        print(f"Tempo de execução: {self.result["time"]}")
+    # Descrição: função que imprime os dados que compõem a solução.
+    # Formato: | Dataset | Pedidos da wave | Corredores da wave | Tempo de execução |
+    def imprimeResultados(self):
+        print(f"| {self.result["dataset"]} | {self.result["orders"]} | {self.result["aisles"]} | {self.result["time"]} |")
 
-    # Descrição: função que salva os resultados do método no arquivo Resultados.csv.
-    # Adicionar os dados 'feasible' e valor objetivo, que podem ser adquiridos executando o checker.py do MeLi, ou criando o nosso próprio.
-    def saveResults(self):
+    # Descrição: função que salva os resultados do método no arquivo Resultado.csv.
+    # Formato: dataset,pedidos separados por -,corredores separados por -,tempo.
+    def salvaResultado(self):
         with open("Resultado.csv", "+a") as file:
-            line = f"{self.result["dataset"]},{"-".join(map(str, self.result["orders"]))},{"-".join(map(str, self.result["orders"]))},{self.result["time"]}\n"
-            file.write(line)
+            file.write(f"{self.result["dataset"]},{"-".join(map(str, self.result["orders"]))},{"-".join(map(str, self.result["aisles"]))},{self.result["time"]}\n")
             file.close()
