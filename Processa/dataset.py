@@ -1,8 +1,11 @@
 import os
 
 class Problema():
-    def __init__(self, dataset):
+    def __init__(self, dataset, arquivo):
         try:
+            # Salvando o nome do arquivo de resultados.
+            self.arquivo = arquivo
+
             # Pegando o diretório atual.
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  
             dataset_path = os.path.join(base_dir, "Datasets", f"{dataset}.txt")
@@ -57,6 +60,6 @@ class Problema():
     # Descrição: função que salva os resultados do método no arquivo Resultado.csv.
     # Formato: dataset,pedidos separados por -,corredores separados por -,tempo.
     def salvaResultado(self):
-        with open("Resultado.csv", "+a") as file:
+        with open(f"./Resultados/{self.arquivo}.csv", "+a") as file:
             file.write(f"{self.result["dataset"]},{"-".join(map(str, self.result["orders"]))},{"-".join(map(str, self.result["aisles"]))},{self.result["time"]}\n")
             file.close()
