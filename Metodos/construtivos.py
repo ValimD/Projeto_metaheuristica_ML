@@ -1,12 +1,14 @@
 import Metodos
+import time
 from random import randint
 
 """
 Descrição: heurística construtiva que usa aleatoriedade para escolher os corredores, e usa o método guloso para encontrar os pedidos. Para o método guloso funcionar, os pedidos serão filtrados para ter somente aqueles que contém os itens dos corredores, e depois serão rankeados pela quantidade de itens em cada um.
 Entrada: objeto do problema instanciado.
-Saída: valor da função objetivo, lista contendo uma lista com os índices dos pedidos e uma contendo os índices dos corredores.
+Saída: lista contendo os pedidos, os corredores, o valor da função objetivo, e o tempo da execução do método.
 """
 def misto(problema):
+    inicio = time.time()
     itensC = dict((i, 0) for i in range(problema.i)) # Dicionário da quantidade de itens nos corredores selecionados.
     corredores = [] # Corredores na solução.
     qntCorredores = randint(1, problema.a) # Quantidade inicial de corredores na solução.
@@ -65,7 +67,5 @@ def misto(problema):
                     itensP[i] -= problema.orders[pedido[0]][i]
                 pedidos.pop()
                 qntItens -= pedido[1]
-    print(objetivo)
-    print(pedidos, qntItens, problema.lb, problema.ub)
-    print(corredores)
-    return objetivo, pedidos, corredores
+    fim = time.time()
+    return [pedidos, corredores, objetivo, fim - inicio]

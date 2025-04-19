@@ -1,11 +1,20 @@
 import sys
 import Processa
+import Metodos
 
 def main(dataset, arquivo):
-    problem = Processa.Problema(dataset, arquivo)
-    problem.imprimeProblema()
-    problem.imprimeResultados()
-    problem.salvaResultado()
+    # Instanciando problema.
+    problema = Processa.Problema(dataset, arquivo)
+    # Construindo uma solução.
+    resultados = Metodos.misto(problema)
+    # Salvando resultados.
+    problema.result["orders"] = resultados[0]
+    problema.result["aisles"] = resultados[1]
+    problema.result["objective"] = resultados[2]
+    problema.result["time"] = resultados[3]
+    # Imprimindo e salvando no arquivo.
+    problema.imprimeResultados()
+    problema.salvaResultado()
 
 # Verificando argumentos e chamando a main.
 if __name__ == "__main__":
