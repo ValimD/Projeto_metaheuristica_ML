@@ -8,15 +8,12 @@ Observação: para otimizar a função, é responsabilidade dos métodos gerenci
 def funcao_objetivo(problema, itensP, itensC):
     # Calculando quantidade total de itens.
     soma = sum(itensP.values())
-    # Verificando as restrições.
-    solucaoValida = True
+    # Verificando as restrições de limites.
     if soma < problema.lb or soma > problema.ub:
-        solucaoValida = False
-    else:
-        for p in itensP:
-            if itensP[p] > itensC[p]:
-                solucaoValida = False
-                break
-    # Retornando
-    return soma if solucaoValida else 0
-            
+        return 0
+    # Verificando a restrição de capacidade nos corredores.
+    for p in itensP:
+        if itensP[p] > itensC[p]:
+            return 0
+    # Retornando a soma. 
+    return soma
