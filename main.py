@@ -20,4 +20,5 @@ def main(dataset, arquivo):
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Uso correto: python3 main.py <dataset> <nome_arquivo_resultados>")
-    main(sys.argv[1], sys.argv[2])
+    else:
+        main(  sys.argv[1], sys.argv[2])
