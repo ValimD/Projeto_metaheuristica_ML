@@ -1,6 +1,6 @@
 import Metodos
-import time
 from random import randint
+from time import perf_counter
 
 """
 Descrição: heurística construtiva que usa aleatoriedade para escolher os corredores, e usa o método guloso para encontrar os pedidos. Para o método guloso funcionar, os pedidos serão filtrados para ter somente aqueles que contém os itens dos corredores, e depois serão rankeados pela quantidade de itens em cada um.
@@ -8,7 +8,7 @@ Entrada: objeto do problema instanciado.
 Saída: lista contendo os pedidos, os corredores, o valor da função objetivo, e o tempo da execução do método.
 """
 def misto_v1(problema):
-    inicio = time.time()
+    inicio = perf_counter()
 
     itensC = dict((i, 0) for i in range(problema.i))    # Dicionário da quantidade de itens nos corredores selecionados.
     corredores = []                                     # Lista dos índices dos corredores compondo a solução.
@@ -68,7 +68,7 @@ def misto_v1(problema):
                 itensP[i] -= problema.orders[pedido[0]][i]
             pedidos.pop()
 
-    fim = time.time()
+    fim = perf_counter()
     return [pedidos, corredores, objetivo, fim - inicio]
 
 """
@@ -77,9 +77,9 @@ Entrada: objeto do problema instanciado.
 Saída: lista contendo os pedidos, os corredores, o valor da função objetivo, e o tempo da execução do método.
 """
 def misto_v2(problema):
-    inicio = time.time()
+    inicio = perf_counter()
 
-    itensP = dict((i, 0) for i in range(problema.i))    # Dicionário da quantidade de itens nos pedidos selecionados.
+    itensP = dict((i, 0) for i in range(problema.i))    # Universo dos itens nos pedidos selecionados.
     qntItens = 0                                        # Quantidade total de itens nos pedidos, serve para ajudar a corrigir soluções inválidas.
     pedidos = []                                        # Lista dos índices dos pedidos compondo a solução.
     qntPedidos = randint(1, problema.o)                 # Quantidade inicial de pedidos na solução (a quantidade real pode variar na hora de tentar corrigir possíveis soluções inválidas).
@@ -103,44 +103,47 @@ def misto_v2(problema):
         else:
             break
 
-    # Filtrando os corredores.
-    ranking = [[i, 0] for i in range(problema.a)]       # Lista contendo sublistas de dois elementos. O primeiro é o id do corredor e o segundo é a quantidade de itens nele (que cobrem os pedidos).
-    corredoresRem = []                                  # Lista para guardar as sublistas de dois elementos que são incompatíveis com os pedidos.
+    # Construindo o universo dos corredores com somente os corredores que contém pelo menos um item do universo de itens.
+    universoC = []                                      # Universo dos corredores possíveis para a solução.
+    for c in range(problema.a):
+        contem = False
+        for i in problema.aisles[c]:
+            if itensP[i] > 0:
+                contem = True
+        if contem:
+            universoC.append(c)
 
-    for c in ranking:
-        for i in problema.aisles[c[0]]:
-            c[1] += problema.aisles[c[0]][i] if itensP[i] != 0 else 0
-        if c[1] == 0:
-            corredoresRem.append(c)
 
-    # Removendo do ranking os corredores incompatíveis com os pedidos.
-    for c in corredoresRem:
-        ranking.remove(c)
-
-    # Rankeando de acordo com a quantidade de itens em ordem crescente.
-    ranking.sort(key = lambda value: value[1])
-
-    # Adicionando os corredores mais valiosos até não sobrar mais nenhum.
-    itensC = dict((i, 0) for i in range(problema.i))    # Dicionário da quantidade de itens nos corredores selecionados.
+    # Adicionando os corredores mais valiosos até não cobrir todos os itens selecionados.
+    universoP = itensP.copy()                           # Cópia do universo dos itens. Necessário para não modificar diretamente o dicionário dos itens dos pedidos.
+    itensF = sum(universoP.values())                    # Quantidade de itens no universo que ainda não foram cobertos.
+    itensC = dict((i, 0) for i in range(problema.i))    # Universo dos itens nos corredores selecionados.
     corredores = []                                     # Lista dos índices dos corredores compondo a solução.
     qntCorredores = 0                                   # Quantidade de corredores selecionados.
-    objetivo = 0                                        # Valor da função objetivo.
 
-    while ranking != []:
-        corredor = ranking.pop()
-        corredores.append(corredor[0])
+    while itensF > 0:
+        # Procurando o melhor corredor para o universo atual.
+        melhor = [-1, -1]                               # ID do corredor, e a quantidade de itens que ele satisfaz.
+        for c in universoC:
+            soma = 0
+            for i in problema.aisles[c]:
+                if universoP[i] > 0:
+                    soma +=  min(problema.aisles[c][i], universoP[i])
+            if soma > melhor[1]:
+                melhor[0] = c
+                melhor[1] = soma
+        # Se a variável melhor permanece inalterada, encerra execução.
+        if melhor[0] == -1:
+            break
+        # Atualizando universo e variáveis.
         qntCorredores += 1
-        for i in problema.aisles[corredor[0]]:
-            itensC[i] += problema.aisles[corredor[0]][i]
-        # Verificando a qualidade.
-        nObjetivo = Metodos.funcao_objetivo(problema, itensP, itensC) / qntCorredores
-        if nObjetivo >= objetivo:
-            objetivo = nObjetivo
-        else:
-            for i in problema.aisles[corredor[0]]:
-                itensC[i] -= problema.aisles[corredor[0]][i]
-            corredores.pop()
-            qntCorredores -= 1
+        corredores.append(melhor[0])
+        universoC.remove(melhor[0])
+        itensF -= melhor[1]
+        for i in problema.aisles[melhor[0]]:
+            universoP[i] -= problema.aisles[melhor[0]][i]
+            itensC[i] += problema.aisles[melhor[0]][i]
 
-    fim = time.time()
+    objetivo = Metodos.funcao_objetivo(problema, itensP, itensC) / qntCorredores
+    fim = perf_counter()
     return [pedidos, corredores, objetivo, fim - inicio]

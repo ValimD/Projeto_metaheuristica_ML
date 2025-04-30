@@ -6,7 +6,7 @@ def main(dataset, arquivo):
     # Instanciando problema.
     problema = Processa.Problema(dataset, arquivo)
     # Construindo uma solução.
-    resultados = Metodos.misto_v1(problema)
+    resultados = Metodos.misto_v2(problema)
     # Salvando resultados.
     problema.result["orders"] = resultados[0]
     problema.result["aisles"] = resultados[1]
@@ -14,11 +14,11 @@ def main(dataset, arquivo):
     problema.result["time"] = resultados[3]
     # Imprimindo e salvando no arquivo.
     problema.imprimeResultados()
-    problema.salvaResultado()
+    #problema.salvaResultado()
 
 # Verificando argumentos e chamando a main.
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Uso correto: python3 main.py <dataset> <nome_arquivo_resultados>")
     else:
-        main(  sys.argv[1], sys.argv[2])
+        main(sys.argv[1], sys.argv[2])
