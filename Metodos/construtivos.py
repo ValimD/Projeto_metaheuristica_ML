@@ -1,149 +1,111 @@
 import Metodos
-from random import randint
+from collections import defaultdict
+from random import choice, choices
 from time import perf_counter
 
 """
-Descrição: heurística construtiva que usa aleatoriedade para escolher os corredores, e usa o método guloso para encontrar os pedidos. Para o método guloso funcionar, os pedidos serão filtrados para ter somente aqueles que contém os itens dos corredores, e depois serão rankeados pela quantidade de itens em cada um.
-Entrada: objeto do problema instanciado.
-Saída: lista contendo os pedidos, os corredores, o valor da função objetivo, e o tempo da execução do método.
+Descrição: heurística construtiva híbrida (gulosa + aleatória) para o problema de seleção de corredores e pedidos. A heurística seleciona corredores com probabilidade proporcional à sua contribuição potencial (peso), calculada com base na demanda dos itens. Após selecionar um corredor, os pedidos são escolhidos gulosamente respeitando as restrições, maximizando a função objetivo.
+Entrada: instância do problema contendo corredores, pedidos, limites e demais dados.
+Saída: lista contendo os pedidos selecionados, corredores selecionados, valor da função objetivo, e tempo de execução da heurística.
 """
-def misto_v1(problema):
+def hibrida(problema):
     inicio = perf_counter()
 
-    itensC = dict((i, 0) for i in range(problema.i))    # Dicionário da quantidade de itens nos corredores selecionados.
-    corredores = []                                     # Lista dos índices dos corredores compondo a solução.
-    qntCorredores = randint(1, problema.a)              # Quantidade de corredores na solução.
-    selecionados = [0 for _ in range(problema.a)]       # Lista para indicar se o corredor já foi selecionado, evitando o uso de not in.
+    sol = Metodos.solucao(
+        dict.fromkeys(range(problema.i), 0),
+        dict.fromkeys(range(problema.i), 0),
+        dict.fromkeys(range(problema.i), 0),
+        [],
+        [0 for _ in range(problema.a)],
+        [],
+        [0 for _ in range(problema.o)],
+        0,
+        0,
+        0.0
+    )
 
-    # Selecionando os corredores.
-    for _ in range(qntCorredores):
-        corredor = randint(0, problema.a - 1)
-        # Se o corredor já foi selecionado, busca outro.
-        while(selecionados[corredor]):
-            corredor = randint(0, problema.a - 1)
-        # Atualizando variáveis.
-        selecionados[corredor] = 1
-        corredores.append(corredor)
-        # Adicionando itens no dicionário.
-        for i in problema.aisles[corredor]:
-            itensC[i] += problema.aisles[corredor][i]
+    # Calculando a demanda de cada item.
+    demanda_por_item = defaultdict(int)             # Dicionário da soma total da demanda de cada item em todos os pedidos.
+    for pedido in problema.orders:
+        for item, qtd in pedido.items():
+            demanda_por_item[item] += qtd
 
-    # Filtrando os pedidos.
-    ranking = [[i, 0] for i in range(problema.o)]       # Lista contendo sublistas de dois elementos. O primeiro é o id do pedido e o segundo é a quantidade de itens nele.
-    pedidosRem = []                                     # Lista para guardar as sublistas de dois elementos que são incompatíveis com os corredores.
-    selecionados = [0 for _ in range(problema.o)]       # Usando a lista para marcar se o pedido foi removido do ranking ou não.
+    # Calculando o peso de cada corredor com base na demanda e na quantidade ofertada.
+    # Peso de cada corredor é calculado com base na demanda dos itens e na quantidade que ele oferece.
+    peso_corredores = {indice: sum(demanda_por_item[item] * qnt for item, qnt in problema.aisles[indice].items()) for indice in range(problema.a)}
 
-    for p in ranking:
-        for i in problema.orders[p[0]]:
-            if itensC[i] < problema.orders[p[0]][i]:
-                pedidosRem.append(p)
-                selecionados[p[0]] = 1
+    # Buscando a melhor solução até ficar 3 iterações seguidas sem encontrar uma melhor.
+    tentativas_sem_melhora = 0
+    while tentativas_sem_melhora < 3 and peso_corredores:
+        copiaSol = sol.clone()
+
+        # Selecionando um corredor ainda não utilizado.
+        # Se todos os pesos forem zero, escolhe aleatoriamente. Caso contrário, utiliza seleção ponderada proporcional ao peso.
+        total = sum(peso_corredores.values())
+        if total == 0:
+            corredor = choice(list(peso_corredores.keys()))
+        else:
+            escolhas, prob = zip(*[(indice, peso / total) for indice, peso in peso_corredores.items()])
+            corredor = choices(escolhas, weights=prob, k=1)[0]
+
+        # Atualizando universo dos corredores.
+        copiaSol.corredores.append(corredor)
+        copiaSol.corredoresDisp[corredor] = 1
+        copiaSol.qntCorredores += 1
+
+        for item, qnt in problema.aisles[corredor].items():
+            copiaSol.itensC[item] += qnt
+            copiaSol.universoC[item] += qnt
+
+        # Filtrando os pedidos possíveis para os corredores selecionados.
+        pedidos_viaveis = []                        # Lista de pedidos viáveis com os corredores atualmente selecionados.
+        for indice in range(problema.o):
+            if not copiaSol.pedidosDisp[indice]:
+                valida = True
+                for item, qnt in problema.orders[indice].items():
+                    if qnt > copiaSol.universoC[item]:
+                        valida = False
+                        break
+                if valida:
+                    pedidos_viaveis.append(indice)
+
+        # Selecionando os melhores pedidos (os que tem mais itens e que não quebram a restrição de ub).
+        while True:
+            # Buscando o melhor pedido para o instante atual.
+            melhor_pedido = [-1, -1]                # [índice do melhor pedido, total de itens].
+            for indice in pedidos_viaveis:
+                if not copiaSol.pedidosDisp[indice]:
+                    soma = 0
+                    valida = True
+                    for item, qnt in problema.orders[indice].items():
+                        if qnt > copiaSol.universoC[item]:
+                            valida = False
+                            break
+                        else:
+                            soma += qnt
+                    if valida and copiaSol.qntItens + soma <= problema.ub and soma > melhor_pedido[1]:
+                        melhor_pedido[0] = indice
+                        melhor_pedido[1] = soma
+            # Encerrando loop caso não tenha encontrado nenhum.
+            if melhor_pedido[0] == -1:
                 break
-        if selecionados[p[0]] == 0:
-            p[1] = sum(problema.orders[p[0]].values())
+            # Atualizando o universo dos pedidos.
+            copiaSol.qntItens += melhor_pedido[1]
+            copiaSol.pedidosDisp[melhor_pedido[0]] = 1
+            copiaSol.pedidos.append(melhor_pedido[0])
+            for item, qnt in problema.orders[melhor_pedido[0]].items():
+                copiaSol.universoC[item] -= qnt
+                copiaSol.itensP[item] += qnt
 
-    # Removendo do ranking os pedidos incompatíveis com os corredores.
-    for p in pedidosRem:
-        ranking.remove(p)
-
-    # Rankeando de acordo com a quantidade de itens em ordem crescente.
-    ranking.sort(key = lambda value: value[1])
-
-    # Adicionando os pedidos mais valiosos até não sobrar mais nenhum.
-    itensP = dict((i, 0) for i in range(problema.i))    # Dicionário da quantidade de itens nos pedidos selecionados.
-    pedidos = []                                        # Lista dos índices dos pedidos compondo a solução.
-    objetivo = 0                                        # Valor da função objetivo.
-
-    while ranking != []:
-        pedido = ranking.pop()
-        pedidos.append(pedido[0])
-        for i in problema.orders[pedido[0]]:
-            itensP[i] += problema.orders[pedido[0]][i]
-        # Verificando a qualidade.
-        nObjetivo = Metodos.funcao_objetivo(problema, itensP, itensC) / qntCorredores
-        if nObjetivo >= objetivo:
-            objetivo = nObjetivo
+        # Comparando as soluções, e salvando a atual caso seja melhor.
+        copiaSol.objetivo = Metodos.funcao_objetivo(problema, copiaSol.itensP, copiaSol.itensC) / copiaSol.qntCorredores
+        if copiaSol.objetivo > sol.objetivo or copiaSol.qntItens < problema.lb:
+            sol = copiaSol
+            peso_corredores.pop(corredor)
+            tentativas_sem_melhora = 0
         else:
-            for i in problema.orders[pedido[0]]:
-                itensP[i] -= problema.orders[pedido[0]][i]
-            pedidos.pop()
+            tentativas_sem_melhora += 1
 
     fim = perf_counter()
-    return [pedidos, corredores, objetivo, fim - inicio]
 
-"""
-Descrição: heurística construtiva que usa aleatoriedade para escolher os pedidos, e usa o método guloso para encontrar os corredores. Para o método guloso funcionar, os corredores serão filtrados para ter somente aqueles que contém pelo menos um item dos pedidos, e depois serão rankeados pela quantidade de itens (dos pedidos) em cada um.
-Entrada: objeto do problema instanciado.
-Saída: lista contendo os pedidos, os corredores, o valor da função objetivo, e o tempo da execução do método.
-"""
-def misto_v2(problema):
-    inicio = perf_counter()
-
-    itensP = dict((i, 0) for i in range(problema.i))    # Universo dos itens nos pedidos selecionados.
-    qntItens = 0                                        # Quantidade total de itens nos pedidos, serve para ajudar a corrigir soluções inválidas.
-    pedidos = []                                        # Lista dos índices dos pedidos compondo a solução.
-    qntPedidos = randint(1, problema.o)                 # Quantidade inicial de pedidos na solução (a quantidade real pode variar na hora de tentar corrigir possíveis soluções inválidas).
-    selecionados = [0 for _ in range(problema.o)]       # Lista para indicar se o pedido já foi selecionado, evitando o uso de not in.
-    p = 0                                               # Variável de iteração.
-
-    # Selecionando pedidos até a restrição de lb ser atendida ou até atingir a quantidade estimada.
-    while qntItens < problema.lb or p < qntPedidos:
-        pedido = randint(0, problema.o - 1)
-        # Se o pedido já foi selecionado, busca outro.
-        while(selecionados[pedido]):
-            pedido = randint(0, problema.o - 1)
-        # Adicionando o pedido caso ele não viole a restrição de ub. Se violar, o loop é encerrado.
-        qntItens += sum(problema.orders[pedido].values())
-        if qntItens <= problema.ub:
-            selecionados[pedido] = 1
-            pedidos.append(pedido)
-            p += 1
-            for i in problema.orders[pedido]:
-                itensP[i] += problema.orders[pedido][i]
-        else:
-            break
-
-    # Construindo o universo dos corredores com somente os corredores que contém pelo menos um item do universo de itens.
-    universoC = []                                      # Universo dos corredores possíveis para a solução.
-    for c in range(problema.a):
-        contem = False
-        for i in problema.aisles[c]:
-            if itensP[i] > 0:
-                contem = True
-        if contem:
-            universoC.append(c)
-
-
-    # Adicionando os corredores mais valiosos até não cobrir todos os itens selecionados.
-    universoP = itensP.copy()                           # Cópia do universo dos itens. Necessário para não modificar diretamente o dicionário dos itens dos pedidos.
-    itensF = sum(universoP.values())                    # Quantidade de itens no universo que ainda não foram cobertos.
-    itensC = dict((i, 0) for i in range(problema.i))    # Universo dos itens nos corredores selecionados.
-    corredores = []                                     # Lista dos índices dos corredores compondo a solução.
-    qntCorredores = 0                                   # Quantidade de corredores selecionados.
-
-    while itensF > 0:
-        # Procurando o melhor corredor para o universo atual.
-        melhor = [-1, -1]                               # ID do corredor, e a quantidade de itens que ele satisfaz.
-        for c in universoC:
-            soma = 0
-            for i in problema.aisles[c]:
-                if universoP[i] > 0:
-                    soma +=  min(problema.aisles[c][i], universoP[i])
-            if soma > melhor[1]:
-                melhor[0] = c
-                melhor[1] = soma
-        # Se a variável melhor permanece inalterada, encerra execução.
-        if melhor[0] == -1:
-            break
-        # Atualizando universo e variáveis.
-        qntCorredores += 1
-        corredores.append(melhor[0])
-        universoC.remove(melhor[0])
-        itensF -= melhor[1]
-        for i in problema.aisles[melhor[0]]:
-            universoP[i] -= problema.aisles[melhor[0]][i]
-            itensC[i] += problema.aisles[melhor[0]][i]
-
-    objetivo = Metodos.funcao_objetivo(problema, itensP, itensC) / qntCorredores
-    fim = perf_counter()
-    return [pedidos, corredores, objetivo, fim - inicio]
+    return [sol.pedidos, sol.corredores, sol.objetivo, fim - inicio]

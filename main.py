@@ -6,7 +6,7 @@ def main(dataset, arquivo):
     # Instanciando problema.
     problema = Processa.Problema(dataset, arquivo)
     # Construindo uma solução.
-    resultados = Metodos.misto_v2(problema)
+    resultados = Metodos.hibrida(problema)
     # Salvando resultados.
     problema.result["orders"] = resultados[0]
     problema.result["aisles"] = resultados[1]
