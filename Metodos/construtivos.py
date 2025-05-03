@@ -162,7 +162,8 @@ def aleatorio(problema):
                         break
                     soma_itens += qnt
 
-                if valida and sol.qntItens + soma_itens <= problema.ub:
+                if valida and sol.qntItens + soma_itens <= problema.ub and pedido not in sol.pedidos:
+                    # Adicionando o pedido à lista de pedidos viáveis.
                     pedidos_viaveis.append(pedido)
 
             if not pedidos_viaveis:
@@ -183,42 +184,6 @@ def aleatorio(problema):
 
         # Calculando o valor da função objetivo.
         sol.objetivo = Metodos.funcao_objetivo(problema, sol.itensP, sol.itensC) / max(1, sol.qntCorredores)
-
-        # Se a função objetivo estiver abaixo de 5, tentar alocar mais pedidos no corredor atual.
-        if sol.objetivo < 5:
-        if True:
-            while True:
-                pedidos_viaveis = []
-                for pedido in pedidos_disponiveis:
-                    valida = True
-                    soma_itens = 0
-                    for item, qnt in problema.orders[pedido].items():
-                        if qnt > sol.universoC[item]:
-                            valida = False
-                            break
-                        soma_itens += qnt
-
-                    if valida and sol.qntItens + soma_itens <= problema.ub:
-                        pedidos_viaveis.append(pedido)
-
-                if not pedidos_viaveis:
-                    break
-
-                # Selecionando um pedido aleatoriamente entre os viáveis.
-                pedido = choice(pedidos_viaveis)
-                pedidos_disponiveis.remove(pedido)
-
-                # Atualizando o universo dos pedidos.
-                soma_itens = sum(problema.orders[pedido].values())
-                sol.qntItens += soma_itens
-                sol.pedidosDisp[pedido] = 1
-                sol.pedidos.append(pedido)
-                for item, qnt in problema.orders[pedido].items():
-                    sol.universoC[item] -= qnt
-                    sol.itensP[item] += qnt
-
-            # Recalcular a função objetivo após tentar alocar mais pedidos.
-            sol.objetivo = Metodos.funcao_objetivo(problema, sol.itensP, sol.itensC) / max(1, sol.qntCorredores)
 
     fim = perf_counter()
 
