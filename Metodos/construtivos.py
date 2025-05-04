@@ -56,45 +56,8 @@ def hibrida(problema):
             copiaSol.itensC[item] += qnt
             copiaSol.universoC[item] += qnt
 
-        # Filtrando os pedidos possíveis para os corredores selecionados.
-        pedidos_viaveis = []                        # Lista de pedidos viáveis com os corredores atualmente selecionados.
-        for indice in range(problema.o):
-            if not copiaSol.pedidosDisp[indice]:
-                valida = True
-                for item, qnt in problema.orders[indice].items():
-                    if qnt > copiaSol.universoC[item]:
-                        valida = False
-                        break
-                if valida:
-                    pedidos_viaveis.append(indice)
-
-        # Selecionando os melhores pedidos (os que tem mais itens e que não quebram a restrição de ub).
-        while True:
-            # Buscando o melhor pedido para o instante atual.
-            melhor_pedido = [-1, -1]                # [índice do melhor pedido, total de itens].
-            for indice in pedidos_viaveis:
-                if not copiaSol.pedidosDisp[indice]:
-                    soma = 0
-                    valida = True
-                    for item, qnt in problema.orders[indice].items():
-                        if qnt > copiaSol.universoC[item]:
-                            valida = False
-                            break
-                        else:
-                            soma += qnt
-                    if valida and copiaSol.qntItens + soma <= problema.ub and soma > melhor_pedido[1]:
-                        melhor_pedido[0] = indice
-                        melhor_pedido[1] = soma
-            # Encerrando loop caso não tenha encontrado nenhum.
-            if melhor_pedido[0] == -1:
-                break
-            # Atualizando o universo dos pedidos.
-            copiaSol.qntItens += melhor_pedido[1]
-            copiaSol.pedidosDisp[melhor_pedido[0]] = 1
-            copiaSol.pedidos.append(melhor_pedido[0])
-            for item, qnt in problema.orders[melhor_pedido[0]].items():
-                copiaSol.universoC[item] -= qnt
-                copiaSol.itensP[item] += qnt
+        # Adicionando pedidos se possível.
+        Metodos.adiciona_pedidos(problema, copiaSol)
 
         # Comparando as soluções, e salvando a atual caso seja melhor.
         copiaSol.objetivo = Metodos.funcao_objetivo(problema, copiaSol.itensP, copiaSol.itensC) / copiaSol.qntCorredores
