@@ -1,17 +1,17 @@
-import sys
-import Processa
 import Metodos
+import Processa
+import sys
 
 def main(dataset, arquivo):
     # Instanciando problema.
     problema = Processa.Problema(dataset, arquivo)
     # Construindo uma solução.
-    resultados = Metodos.hibrida(problema)
+    solucao = Metodos.hibrida(problema)
     # Salvando resultados.
-    problema.result["orders"] = resultados[0]
-    problema.result["aisles"] = resultados[1]
-    problema.result["objective"] = resultados[2]
-    problema.result["time"] = resultados[3]
+    problema.result["orders"] = solucao.pedidos
+    problema.result["aisles"] = solucao.corredores
+    problema.result["objective"] = solucao.objetivo
+    problema.result["time"] = solucao.tempo
     # Imprimindo e salvando no arquivo.
     problema.imprimeResultados()
     #problema.salvaResultado()

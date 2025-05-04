@@ -6,11 +6,9 @@ from time import perf_counter
 """
 Descrição: heurística construtiva híbrida (gulosa + aleatória) para o problema de seleção de corredores e pedidos. A heurística seleciona corredores com probabilidade proporcional à sua contribuição potencial (peso), calculada com base na demanda dos itens. Após selecionar um corredor, os pedidos são escolhidos gulosamente respeitando as restrições, maximizando a função objetivo.
 Entrada: instância do problema contendo corredores, pedidos, limites e demais dados.
-Saída: lista contendo os pedidos selecionados, corredores selecionados, valor da função objetivo, e tempo de execução da heurística.
+Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução.
 """
 def hibrida(problema):
-    inicio = perf_counter()
-
     sol = Metodos.solucao(
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),
@@ -21,7 +19,8 @@ def hibrida(problema):
         [0 for _ in range(problema.o)],
         0,
         0,
-        0.0
+        0.0,
+        perf_counter()
     )
 
     # Calculando a demanda de cada item.
@@ -106,19 +105,17 @@ def hibrida(problema):
         else:
             tentativas_sem_melhora += 1
 
-    fim = perf_counter()
+    sol.tempo = perf_counter() - sol.tempo
 
-    return [sol.pedidos, sol.corredores, sol.objetivo, fim - inicio]
+    return sol
 
 
 """
 Descrição: heurística construtiva aleatória para o problema de seleção de corredores e pedidos. A heurística seleciona corredores e pedidos de forma aleatória, respeitando as restrições do problema.
 Entrada: instância do problema contendo corredores, pedidos, limites e demais dados.
-Saída: lista contendo os pedidos selecionados, corredores selecionados, valor da função objetivo, e tempo de execução da heurística.
+Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução.
 """
 def aleatorio(problema):
-    inicio = perf_counter()
-    
     sol = Metodos.solucao(
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),
@@ -129,7 +126,8 @@ def aleatorio(problema):
         [0 for _ in range(problema.o)],
         0,
         0,
-        0.0
+        0.0,
+        perf_counter()
     )
 
     corredores_disponiveis = set(range(problema.a))
@@ -185,6 +183,6 @@ def aleatorio(problema):
         # Calculando o valor da função objetivo.
         sol.objetivo = Metodos.funcao_objetivo(problema, sol.itensP, sol.itensC) / max(1, sol.qntCorredores)
 
-    fim = perf_counter()
+    sol.tempo = perf_counter() - sol.tempo
 
-    return [sol.pedidos, sol.corredores, sol.objetivo, fim - inicio]
+    return sol

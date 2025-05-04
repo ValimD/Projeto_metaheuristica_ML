@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 from typing import Dict, List
 
@@ -14,6 +13,7 @@ class solucao:
     qntItens: int                 # Quantidade total de itens nos pedidos selecionados.
     qntCorredores: int            # Quantidade de corredores selecionados.
     objetivo: float               # Valor da função objetivo para a solução encontrada.
+    tempo: float                  # Tempo de execução da heurística.
 
     def clone(self):
         return solucao(
@@ -26,7 +26,8 @@ class solucao:
             self.pedidosDisp[:],
             self.qntItens,
             self.qntCorredores,
-            self.objetivo
+            self.objetivo,
+            self.tempo
         )
 
 """
