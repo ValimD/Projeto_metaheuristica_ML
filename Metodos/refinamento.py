@@ -1,6 +1,189 @@
 import Metodos
-from collections import defaultdict
+import numpy as np
 from time import perf_counter
+from collections import defaultdict
+from sklearn.cluster import Birch
+from sklearn.cluster import MiniBatchKMeans
+from sklearn.feature_extraction import DictVectorizer
+from random import choice
+
+def construir_clusters_de_dicts(labels_pedidos, labels_corredores):
+    """
+    Constrói dicts de cluster->{lista de índices} para pedidos e corredores.
+    """
+    clusters_ped = defaultdict(list)
+    for idx, lab in enumerate(labels_pedidos):
+        clusters_ped[lab].append(idx)
+    clusters_corr = defaultdict(list)
+    for idx, lab in enumerate(labels_corredores):
+        clusters_corr[lab].append(idx)
+    return clusters_ped, clusters_corr
+
+
+def atualizaCorredores(solucao, sol_vizinha, novo_c, i):
+    # Atualizar: universoC, itensC, corredores, corredoresDisp
+    # print(f'solucao.corredores[i]{solucao.corredores[i]}')
+    
+    sol_vizinha.universoC[i] += -solucao.corredores[i] + novo_c
+    sol_vizinha.itensC[i] += -solucao.corredores[i] + novo_c
+    sol_vizinha.corredores[i] = novo_c
+    sol_vizinha.corredoresDisp[i] = True
+    sol_vizinha.corredoresDisp[novo_c] = False
+
+    return sol_vizinha
+
+def atualizaPedidos(solucao, sol_vizinha, novo_p, i):
+    # Atualizar: universoP, itensP, pedidos, pedidosDisp, qntItens
+    sol_vizinha.universoP += -solucao.pedidos[i].items() + novo_p.items()
+    sol_vizinha.itensP += -solucao.pedidos[i].items() + novo_p.items()
+    sol_vizinha.pedidos[i] = novo_p
+    sol_vizinha.pedidosDisp[i] = True
+    sol_vizinha.pedidosDisp[novo_p] = False
+    sol_vizinha.qntItens = sum(sol_vizinha.pedidos[i].values())
+    
+    return sol_vizinha
+
+def gerar_sol_vizinha(solucao, problema, tipo, clusters_ped, clusters_corr, label_pedidos, label_corredores):
+    """
+    Gera um vizinho da solucao trocando ou um pedido ou um corredor dentro do mesmo cluster.
+    tipo: 'pedido' ou 'corredor'
+    Retorna nova_solucao (deepcopy).
+    """
+    sol_vizinha = solucao.clone()    
+    
+    if tipo == 'pedido':
+        # Criando lista com os índices dos label_pedidos utilizados na solução
+        ativos = list(range(len(sol_vizinha.pedidos)))
+        if not ativos:
+            return None
+        # Escolhendo um pedido ativo aleatoriamente para alterar
+        i = choice(ativos)
+        # id do pedido atual nessa posição
+        pedido_atual = sol_vizinha.pedidos[i]
+        # rótulo dele
+        lab = label_pedidos[pedido_atual]
+        # Criando lista de candidatos dentro do mesmo cluster
+        candidatos = [p for p in clusters_ped[lab] if p != sol_vizinha.pedidos[i]]
+        if not candidatos:
+            return None
+        # Escolhendo um pedido candidato aleatoriamente
+        novo_p = choice(candidatos)
+        
+        sol_vizinha = atualizaPedidos(solucao, sol_vizinha, novo_p, i)
+
+        # Verificando se o novo pedido não ultrapassa a capacidade do corredor
+        if sol_vizinha.qntItens > problema.ub or novo_p in solucao.pedidos or sol_vizinha.qntItens < problema.lb:
+            return None
+        
+        for item, qnt in novo_p.items():
+            # Verificando se o novo pedido não ultrapassa a capacidade do corredor
+            if sol_vizinha.itensC[item] < qnt + sol_vizinha.itensP[item]:
+                return None
+
+        sol_vizinha.pedidos[i] = novo_p
+        sol_vizinha.qntItens = sum(label_pedidos[novo_p].values())
+        for item in label_pedidos[novo_p]:
+            # Verificando se o novo pedido não ultrapassa a capacidade do corredor
+            if label_pedidos[novo_p][item] + sol_vizinha.pedidos[i][item] > solucao.limites[item]:
+                return None
+        
+    else:
+        ativos = list(range(len(sol_vizinha.corredores)))
+        if not ativos:
+            return None
+        i = choice(ativos)
+        pedido_atual = sol_vizinha.corredores[i]
+        lab = label_corredores[pedido_atual]
+        candidatos = [c for c in clusters_corr[lab] if c != sol_vizinha.corredores[i]]
+        if not candidatos:
+            return None
+        novo_c = choice(candidatos)
+        if novo_c in solucao.corredores:
+            return None
+        else:
+            sol_vizinha = atualizaCorredores(solucao, sol_vizinha, novo_c, i)
+
+        
+
+    return sol_vizinha
+
+
+def refinamento_cluster_vns(problema, solucao):
+    """
+    Executa um VNS simples alternando entre vizinhança de pedidos e de corredores.
+    """
+    inicio = perf_counter()
+    best = solucao
+    iter_sem_melhora = 0
+    k = 1
+
+    pedidos, corredores = clusterizacao_MBKM(problema)
+    clusters_ped, clusters_corr = construir_clusters_de_dicts(pedidos, corredores)
+    
+    
+    while iter_sem_melhora < 10:
+        tipo = 'pedido' if k < 1 else 'corredor'
+        # Gera uma solução vizinha
+        viz = gerar_sol_vizinha(best, problema, tipo, clusters_ped, clusters_corr, pedidos, corredores)
+        if viz is None:
+            if  k == 4:
+                k = 1
+                iter_sem_melhora += 1
+                
+            else:
+                k += 1
+                iter_sem_melhora += 1
+            continue
+                
+            
+        viz.objetivo = Metodos.funcao_objetivo(problema, viz.itensP, viz.itensC)
+        
+        # Se melhorou, aceite e reinicie vizinhança
+        if viz.objetivo > best.objetivo:
+            best = viz
+            clusters_ped, clusters_corr = construir_clusters_de_dicts(pedidos, corredores)
+            k = 1
+            iter_sem_melhora = 0
+        else:
+            # muda de vizinhança
+            k = 1 if k == 2 else k + 1
+            iter_sem_melhora += 1
+    
+    fim = perf_counter()
+    print(f"Refinamento concluído em {fim - inicio:.2f}s, objetivo final = {best.objetivo:.2f}")
+    return best
+
+
+def clusterizacao_MBKM(problema):
+    tam = problema.i + 1
+    pedidos = []
+    corredores = []
+
+    # Vetorização dos pedidos
+    for pedido in problema.orders:
+        v = np.zeros(tam)
+        for item, qtd in pedido.items():
+            v[item] = qtd
+        pedidos.append(v)
+
+    # Vetorização dos corredores
+    for corredor in problema.aisles:
+        v = np.zeros(tam)
+        for item, qtd in corredor.items():
+            v[item] = qtd
+        corredores.append(v)
+
+    X_pedidos    = np.vstack(pedidos)    # shape = (n_pedidos, tam)
+    X_corredores = np.vstack(corredores) # shape = (n_corredores, tam)
+
+    pedidos    = MiniBatchKMeans(n_clusters=10, batch_size=1024, random_state=0)
+    corredores = MiniBatchKMeans(n_clusters=10, batch_size=1024, random_state=0)
+
+    labels_pedidos    = pedidos.fit_predict(X_pedidos)
+    labels_corredores = corredores.fit_predict(X_corredores)
+
+    return labels_pedidos, labels_corredores
+
 
 """
 Descrição: heurística de refinamento baseada em melhor vizinhança, ela procura qual das vizinhanças possíveis (adicionando corredor, trocando corredores, removendo corredor) tem o melhor valor de função objetivo. Tanto os corredores, como os pedidos adicionados quando possível, são escolhidos de forma gulosa (corredores por peso, e pedidos por quantidade de itens).
@@ -14,7 +197,7 @@ def melhor_vizinhanca(problema, solucao):
     solucao = Metodos.remove_redundantes(problema, solucao)
 
     # Calculando a demanda de cada item.
-    demanda_por_item = defaultdict(int)             # Dicionário da soma total da demanda de c3ada item em todos os pedidos.
+    demanda_por_item = defaultdict(int)             # Dicionário da soma total da demanda de cada item em todos os pedidos.
     for pedido in problema.orders:
         for item, qtd in pedido.items():
             demanda_por_item[item] += qtd
@@ -71,3 +254,42 @@ def melhor_vizinhanca(problema, solucao):
     fim = perf_counter()
     solucao.tempo += fim - inicio
     return solucao
+
+
+
+# def refinamento_por_clusterV1(problema, solucao):
+#     inicio = perf_counter()
+    
+#     tam = problema.i + 1
+#     pedidos = []
+#     corredores = []
+
+#     for pedido in problema.orders:
+#         v = np.zeros(tam)
+#         for item, qtd in pedido.items():
+#             v[item] = qtd
+#         pedidos.append(v)
+
+#     for corredor in problema.aisles:
+#         v = np.zeros(tam)
+#         for item, qtd in corredor.items():
+#             v[item] = qtd
+#         corredores.append(v)
+
+#     X_pedidos    = np.vstack(pedidos)    # shape = (n_pedidos, dim)
+#     X_corredores = np.vstack(corredores) # shape = (n_corredores, dim)
+
+#     birch_pedidos    = Birch(threshold=0.5, branching_factor=50, n_clusters=10)
+#     birch_corredores = Birch(threshold=0.5, branching_factor=50, n_clusters=10)
+
+#     labels_pedidos    = birch_pedidos.fit_predict(X_pedidos)
+#     labels_corredores = birch_corredores.fit_predict(X_corredores)
+
+
+
+#     fim = perf_counter()
+#     print(f"Clusterização finalizada em {fim - inicio:.3f} s")
+
+#     return labels_corredores, labels_pedidos
+
+
