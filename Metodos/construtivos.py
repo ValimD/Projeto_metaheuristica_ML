@@ -235,7 +235,10 @@ def gulosa(problema):
             if sol.pedidosDisp[idx_pedido]:
                 continue
             pedido = problema.orders[idx_pedido]
-            # Verificação de se o pedido cabe no inventário.
+            # Verificação de UB, se verdadeiro -> pula este pedido e vai para o próximo.
+            if sol.qntItens + sum(pedido.values()) > problema.ub:
+                continue
+            # Verificação de se o pedido cabe completamente no inventário temporário.
             if all(universo_temporario[item] >= qtd for item, qtd in pedido.items()):
                 # Alocação do pedido e consumo do inventário.
                 for item, qtd in pedido.items():
@@ -246,7 +249,6 @@ def gulosa(problema):
                 sol.qntItens += sum(pedido.values())
 
     sol.objetivo = sol.qntItens / sol.qntCorredores if sol.qntCorredores else 0.0
-
     sol.tempo = perf_counter() - sol.tempo
-
+    
     return sol
