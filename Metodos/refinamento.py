@@ -20,34 +20,70 @@ def construir_clusters_de_dicts(labels_pedidos, labels_corredores):
     return clusters_ped, clusters_corr
 
 
-def atualizaCorredores(solucao, sol_vizinha, novo_c, i):
-    # Atualizar: universoC, itensC, corredores, corredoresDisp
-    # print(f'solucao.corredores[i]{solucao.corredores[i]}')
-    
-    sol_vizinha.universoC[i] += -solucao.corredores[i] + novo_c
-    sol_vizinha.itensC[i] += -solucao.corredores[i] + novo_c
-    sol_vizinha.corredores[i] = novo_c
-    sol_vizinha.corredoresDisp[i] = True
-    sol_vizinha.corredoresDisp[novo_c] = False
+def atualizaCorredores(solucao, problema, sol_vizinha, novo_c, pos):
+    """
+    pos: posição na lista solucao.corredores onde trocamos o corredor
+    novo_c: ID do corredor que entra
+    problema: para acessar problema.aisles
+    """
+
+    # 1) identifica IDs
+    corredor_antigo = solucao.corredores[pos]
+
+    # 2) subtrai as quantidades do corredor antigo
+    for item, qtd in problema.aisles[corredor_antigo].items():
+        sol_vizinha.universoC[item] -= qtd
+        sol_vizinha.itensC[item]   -= qtd
+
+    # 3) adiciona as quantidades do corredor novo
+    for item, qtd in problema.aisles[novo_c].items():
+        sol_vizinha.universoC[item] = sol_vizinha.universoC.get(item, 0) + qtd
+        sol_vizinha.itensC[item]   = sol_vizinha.itensC.get(item, 0)   + qtd
+
+    # 4) atualiza as listas de corredores
+    sol_vizinha.corredores[pos]    = novo_c
+    sol_vizinha.corredoresDisp[corredor_antigo] = False
+    sol_vizinha.corredoresDisp[novo_c]         = True
 
     return sol_vizinha
 
-def atualizaPedidos(solucao, sol_vizinha, novo_p, i):
-    # Atualizar: universoP, itensP, pedidos, pedidosDisp, qntItens
-    sol_vizinha.universoP += -solucao.pedidos[i].items() + novo_p.items()
-    sol_vizinha.itensP += -solucao.pedidos[i].items() + novo_p.items()
-    sol_vizinha.pedidos[i] = novo_p
-    sol_vizinha.pedidosDisp[i] = True
-    sol_vizinha.pedidosDisp[novo_p] = False
-    sol_vizinha.qntItens = sum(sol_vizinha.pedidos[i].values())
-    
+
+def atualizaPedidos(solucao, problema, sol_vizinha, novo_p, pos):
+    """
+    pos: posição na lista solucao.pedidos onde ocorre a troca
+    novo_p: ID do pedido que entra
+    problema: para acessar problema.orders
+    """
+
+    # 1) identifica ID do pedido antigo
+    pedido_antigo = solucao.pedidos[pos]
+
+    # 2) subtrai as quantidades do pedido antigo
+    for item, qtd in problema.orders[pedido_antigo].items():
+        sol_vizinha.universoP[item] -= qtd
+        sol_vizinha.itensP[item]    -= qtd
+
+    # 3) adiciona as quantidades do novo pedido
+    for item, qtd in problema.orders[novo_p].items():
+        sol_vizinha.universoP[item] = sol_vizinha.universoP.get(item, 0) + qtd
+        sol_vizinha.itensP[item]    = sol_vizinha.itensP.get(item,    0) + qtd
+
+    # 4) atualiza a lista de pedidos e o vetor de disponibilidade
+    sol_vizinha.pedidos[pos]        = novo_p
+    sol_vizinha.pedidosDisp[pedido_antigo] = False
+    sol_vizinha.pedidosDisp[novo_p]       = True
+
+    # 5) recalcula qntItens como soma de todos os itens em itensP
+    sol_vizinha.qntItens = sum(sol_vizinha.itensP.values())
+
     return sol_vizinha
+
 
 def gerar_sol_vizinha(solucao, problema, tipo, clusters_ped, clusters_corr, label_pedidos, label_corredores):
     """
     Gera um vizinho da solucao trocando ou um pedido ou um corredor dentro do mesmo cluster.
     tipo: 'pedido' ou 'corredor'
-    Retorna nova_solucao (deepcopy).
+    Retorna nova_solucao.
     """
     sol_vizinha = solucao.clone()    
     
@@ -69,7 +105,7 @@ def gerar_sol_vizinha(solucao, problema, tipo, clusters_ped, clusters_corr, labe
         # Escolhendo um pedido candidato aleatoriamente
         novo_p = choice(candidatos)
         
-        sol_vizinha = atualizaPedidos(solucao, sol_vizinha, novo_p, i)
+        sol_vizinha = atualizaPedidos(solucao, problema, sol_vizinha, novo_p, i)
 
         # Verificando se o novo pedido não ultrapassa a capacidade do corredor
         if sol_vizinha.qntItens > problema.ub or novo_p in solucao.pedidos or sol_vizinha.qntItens < problema.lb:
@@ -101,7 +137,7 @@ def gerar_sol_vizinha(solucao, problema, tipo, clusters_ped, clusters_corr, labe
         if novo_c in solucao.corredores:
             return None
         else:
-            sol_vizinha = atualizaCorredores(solucao, sol_vizinha, novo_c, i)
+            sol_vizinha = atualizaCorredores(solucao, problema, sol_vizinha, novo_c, i)
 
         
 
@@ -125,7 +161,7 @@ def refinamento_cluster_vns(problema, solucao):
     clusters_ped, clusters_corr = construir_clusters_de_dicts(pedidos, corredores)
     
     
-    while iter_sem_melhora < 10:
+    while iter_sem_melhora < 1000:
         tipo = 'pedido' if k < 1 else 'corredor'
         # Gera uma solução vizinha
         viz = gerar_sol_vizinha(best, problema, tipo, clusters_ped, clusters_corr, pedidos, corredores)
@@ -149,8 +185,8 @@ def refinamento_cluster_vns(problema, solucao):
             k = 1
             iter_sem_melhora = 0
         else:
-            # muda de vizinhança
-            k = 1 if k == 2 else k + 1
+            # muda de vizinhançax'
+            k = 1 if k == 4 else k + 1
             iter_sem_melhora += 1
     
     fim = perf_counter()
