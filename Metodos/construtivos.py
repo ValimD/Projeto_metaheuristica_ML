@@ -149,3 +149,104 @@ def aleatorio(problema):
     sol.tempo = perf_counter() - sol.tempo
 
     return sol
+
+"""
+Descrição: heurística construtiva que usa estratégia gulosa baseada nos pesos de concetração dos itens em cada pedido e em cada corredor para ranqueá-los e selecionar os pedidos que satisfazem os corredores.
+Entrada: instância do problema contendo corredores, pedidos, limites e demais dados.
+Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução.
+"""
+def gulosa(problema):
+    sol = Metodos.solucao(
+        dict.fromkeys(range(problema.i), 0),
+        dict.fromkeys(range(problema.i), 0),
+        dict.fromkeys(range(problema.i), 0),
+        [],
+        [0 for _ in range(problema.a)],
+        [],
+        [0 for _ in range(problema.o)],
+        0,
+        0,
+        0.0,
+        perf_counter()
+    )
+
+    pedidos_restantes    = {i: problema.orders[i]   for i in range(problema.o)}
+    corredores_restantes = {i: problema.aisles[i]   for i in range(problema.a)}
+
+    # Calculando a concentração dos itens nos pedidos.
+    concentracao_pedidos = defaultdict(lambda: {"total": 0, "pedidos": 0})
+    for pedido in problema.orders:
+        for item, qtd in pedido.items():
+            concentracao_pedidos[item]["total"] += qtd
+            concentracao_pedidos[item]["pedidos"] += 1
+
+    # Calculando a concentração dos itens nos corredores.
+    concentracao_corredores = defaultdict(lambda: {"total": 0, "corredores": 0})
+    for corredor in problema.aisles:
+        for item, qtd in corredor.items():
+            concentracao_corredores[item]["total"] += qtd
+            concentracao_corredores[item]["corredores"] += 1
+
+    # Calculando o peso ponderado de cada item, com base na concentração dos mesmos nos pedidos e nos corredores.
+    peso_ponderado_itens = {item: (concentracao_pedidos[item]["total"] / concentracao_pedidos[item]["pedidos"]) * (concentracao_corredores[item]["total"] / concentracao_corredores[item]["corredores"]) for item in range (problema.i)}
+
+    # Função para ranquear os pedidos com base na soma dos pesos dos itens.
+    def peso_pedido(indice_pedido):
+        pedido = pedidos_restantes[indice_pedido]
+        return sum(peso_ponderado_itens[id] * qtd for id, qtd in pedido.items())
+
+    # Função para ranquear os corredores com base na soma dos pesos dos itens.
+    def peso_corredor(indice_corredor):
+        corredor = corredores_restantes[indice_corredor]
+        return sum(peso_ponderado_itens[id] * qtd for id, qtd in corredor.items())
+
+    lista_idx_pedidos_ranqueados = []
+    lista_idx_corredores_ranqueados = []
+
+    # Ranqueamento dos pedidos, e o resultado é a lista dos indices em ordem de peso (maior -> menor).
+    while pedidos_restantes:
+        id_pedido_max = max(pedidos_restantes, key = peso_pedido)
+        lista_idx_pedidos_ranqueados.append(id_pedido_max)
+        pedidos_restantes.pop(id_pedido_max)
+
+    # Ranqueamento dos corredores, e o resultado é a lista dos indices em ordem de peso (maior -> menor).
+    while corredores_restantes:
+        id_corredor_max = max(corredores_restantes, key = peso_corredor)
+        lista_idx_corredores_ranqueados.append(id_corredor_max)
+        corredores_restantes.pop(id_corredor_max)
+
+    universo_temporario = dict.fromkeys(range(problema.i), 0)
+
+    # Seleção dos pedidos para satisfazer os corredores.
+    for idx_corredor in lista_idx_corredores_ranqueados:
+        corredor = problema.aisles[idx_corredor]
+        sol.corredores.append(idx_corredor)
+        sol.corredoresDisp[idx_corredor] = 1
+        sol.qntCorredores += 1
+
+        # Acumulação dos itens dos corredores.
+        for item, qtd in corredor.items():
+            sol.itensC[item] += qtd
+            sol.universoC[item] += qtd
+            universo_temporario[item] += qtd
+
+        # Teste dos pedidos em ordem de ranqueamento.
+        for idx_pedido in lista_idx_pedidos_ranqueados:
+            if sol.pedidosDisp[idx_pedido]:
+                continue
+            pedido = problema.orders[idx_pedido]
+            # Verificação de se o pedido cabe no inventário.
+            if all(universo_temporario[item] >= qtd for item, qtd in pedido.items()):
+                # Alocação do pedido e consumo do inventário.
+                for item, qtd in pedido.items():
+                    universo_temporario[item] -= qtd
+                    sol.itensP[item] += qtd
+                sol.pedidos.append(idx_pedido)
+                sol.pedidosDisp[idx_pedido] = 1
+                sol.qntItens += sum(pedido.values())
+
+    sol.objetivo = sol.qntItens / sol.qntCorredores if sol.qntCorredores else 0.0
+
+    sol.tempo = perf_counter() - sol.tempo
+
+    return sol
