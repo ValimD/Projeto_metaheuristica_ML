@@ -117,6 +117,10 @@ def refinamento_cluster_vns(problema, solucao):
     iter_sem_melhora = 0
     k = 1
 
+    if problema.a < 10 or problema.o < 10:
+        # print("Problema muito pequeno para clusterização.")
+        return melhor_vizinhanca(problema, solucao)
+
     pedidos, corredores = clusterizacao_MBKM(problema)
     clusters_ped, clusters_corr = construir_clusters_de_dicts(pedidos, corredores)
     
@@ -150,7 +154,8 @@ def refinamento_cluster_vns(problema, solucao):
             iter_sem_melhora += 1
     
     fim = perf_counter()
-    print(f"Refinamento concluído em {fim - inicio:.2f}s, objetivo final = {best.objetivo:.2f}")
+    best.tempo += fim - inicio
+    # print(f"Refinamento concluído em {fim - inicio:.2f}s, objetivo final = {best.objetivo:.2f}")
     return best
 
 
@@ -254,42 +259,3 @@ def melhor_vizinhanca(problema, solucao):
     fim = perf_counter()
     solucao.tempo += fim - inicio
     return solucao
-
-
-
-# def refinamento_por_clusterV1(problema, solucao):
-#     inicio = perf_counter()
-    
-#     tam = problema.i + 1
-#     pedidos = []
-#     corredores = []
-
-#     for pedido in problema.orders:
-#         v = np.zeros(tam)
-#         for item, qtd in pedido.items():
-#             v[item] = qtd
-#         pedidos.append(v)
-
-#     for corredor in problema.aisles:
-#         v = np.zeros(tam)
-#         for item, qtd in corredor.items():
-#             v[item] = qtd
-#         corredores.append(v)
-
-#     X_pedidos    = np.vstack(pedidos)    # shape = (n_pedidos, dim)
-#     X_corredores = np.vstack(corredores) # shape = (n_corredores, dim)
-
-#     birch_pedidos    = Birch(threshold=0.5, branching_factor=50, n_clusters=10)
-#     birch_corredores = Birch(threshold=0.5, branching_factor=50, n_clusters=10)
-
-#     labels_pedidos    = birch_pedidos.fit_predict(X_pedidos)
-#     labels_corredores = birch_corredores.fit_predict(X_corredores)
-
-
-
-#     fim = perf_counter()
-#     print(f"Clusterização finalizada em {fim - inicio:.3f} s")
-
-#     return labels_corredores, labels_pedidos
-
-
