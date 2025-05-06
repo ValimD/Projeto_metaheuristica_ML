@@ -7,10 +7,10 @@ from sklearn.cluster import MiniBatchKMeans
 from sklearn.feature_extraction import DictVectorizer
 from random import choice
 
+"""
+Descrição: constrói dicts de cluster->{lista de índices} para pedidos e corredores.
+"""
 def construir_clusters_de_dicts(labels_pedidos, labels_corredores):
-    """
-    Constrói dicts de cluster->{lista de índices} para pedidos e corredores.
-    """
     clusters_ped = defaultdict(list)
     for idx, lab in enumerate(labels_pedidos):
         clusters_ped[lab].append(idx)
@@ -20,13 +20,12 @@ def construir_clusters_de_dicts(labels_pedidos, labels_corredores):
     return clusters_ped, clusters_corr
 
 
+"""
+pos: posição na lista solucao.corredores onde trocamos o corredor
+novo_c: ID do corredor que entra
+problema: para acessar problema.aisles
+"""
 def atualizaCorredores(solucao, problema, sol_vizinha, novo_c, pos):
-    """
-    pos: posição na lista solucao.corredores onde trocamos o corredor
-    novo_c: ID do corredor que entra
-    problema: para acessar problema.aisles
-    """
-
     # 1) identifica IDs
     corredor_antigo = solucao.corredores[pos]
 
@@ -48,13 +47,12 @@ def atualizaCorredores(solucao, problema, sol_vizinha, novo_c, pos):
     return sol_vizinha
 
 
+"""
+pos: posição na lista solucao.pedidos onde ocorre a troca
+novo_p: ID do pedido que entra
+problema: para acessar problema.orders
+"""
 def atualizaPedidos(solucao, problema, sol_vizinha, novo_p, pos):
-    """
-    pos: posição na lista solucao.pedidos onde ocorre a troca
-    novo_p: ID do pedido que entra
-    problema: para acessar problema.orders
-    """
-
     # 1) identifica ID do pedido antigo
     pedido_antigo = solucao.pedidos[pos]
 
@@ -79,14 +77,14 @@ def atualizaPedidos(solucao, problema, sol_vizinha, novo_p, pos):
     return sol_vizinha
 
 
+"""
+Descrição: gera um vizinho da solucao trocando ou um pedido ou um corredor dentro do mesmo cluster.
+tipo: 'pedido' ou 'corredor'
+Saída: instancia do dataclass, contendo os elementos principais e auxiliares da nova solução.
+"""
 def gerar_sol_vizinha(solucao, problema, tipo, clusters_ped, clusters_corr, label_pedidos, label_corredores):
-    """
-    Gera um vizinho da solucao trocando ou um pedido ou um corredor dentro do mesmo cluster.
-    tipo: 'pedido' ou 'corredor'
-    Retorna nova_solucao.
-    """
-    sol_vizinha = solucao.clone()    
-    
+    sol_vizinha = solucao.clone()
+
     if tipo == 'pedido':
         # Criando lista com os índices dos label_pedidos utilizados na solução
         ativos = list(range(len(sol_vizinha.pedidos)))
@@ -104,13 +102,13 @@ def gerar_sol_vizinha(solucao, problema, tipo, clusters_ped, clusters_corr, labe
             return None
         # Escolhendo um pedido candidato aleatoriamente
         novo_p = choice(candidatos)
-        
+
         sol_vizinha = atualizaPedidos(solucao, problema, sol_vizinha, novo_p, i)
 
         # Verificando se o novo pedido não ultrapassa a capacidade do corredor
         if sol_vizinha.qntItens > problema.ub or novo_p in solucao.pedidos or sol_vizinha.qntItens < problema.lb:
             return None
-        
+
         for item, qnt in novo_p.items():
             # Verificando se o novo pedido não ultrapassa a capacidade do corredor
             if sol_vizinha.itensC[item] < qnt + sol_vizinha.itensP[item]:
@@ -122,7 +120,7 @@ def gerar_sol_vizinha(solucao, problema, tipo, clusters_ped, clusters_corr, labe
             # Verificando se o novo pedido não ultrapassa a capacidade do corredor
             if label_pedidos[novo_p][item] + sol_vizinha.pedidos[i][item] > solucao.limites[item]:
                 return None
-        
+
     else:
         ativos = list(range(len(sol_vizinha.corredores)))
         if not ativos:
@@ -139,15 +137,15 @@ def gerar_sol_vizinha(solucao, problema, tipo, clusters_ped, clusters_corr, labe
         else:
             sol_vizinha = atualizaCorredores(solucao, problema, sol_vizinha, novo_c, i)
 
-        
+
 
     return sol_vizinha
 
 
+"""
+Descrição: executa um VNS simples alternando entre vizinhança de pedidos e de corredores.
+"""
 def refinamento_cluster_vns(problema, solucao):
-    """
-    Executa um VNS simples alternando entre vizinhança de pedidos e de corredores.
-    """
     inicio = perf_counter()
     best = solucao
     iter_sem_melhora = 0
@@ -159,8 +157,8 @@ def refinamento_cluster_vns(problema, solucao):
 
     pedidos, corredores = clusterizacao_MBKM(problema)
     clusters_ped, clusters_corr = construir_clusters_de_dicts(pedidos, corredores)
-    
-    
+
+
     while iter_sem_melhora < 1000:
         tipo = 'pedido' if k < 1 else 'corredor'
         # Gera uma solução vizinha
@@ -169,15 +167,15 @@ def refinamento_cluster_vns(problema, solucao):
             if  k == 4:
                 k = 1
                 iter_sem_melhora += 1
-                
+
             else:
                 k += 1
                 iter_sem_melhora += 1
             continue
-                
-            
+
+
         viz.objetivo = Metodos.funcao_objetivo(problema, viz.itensP, viz.itensC)
-        
+
         # Se melhorou, aceite e reinicie vizinhança
         if viz.objetivo > best.objetivo:
             best = viz
@@ -188,7 +186,7 @@ def refinamento_cluster_vns(problema, solucao):
             # muda de vizinhançax'
             k = 1 if k == 4 else k + 1
             iter_sem_melhora += 1
-    
+
     fim = perf_counter()
     best.tempo += fim - inicio
     # print(f"Refinamento concluído em {fim - inicio:.2f}s, objetivo final = {best.objetivo:.2f}")
