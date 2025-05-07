@@ -41,40 +41,30 @@ def adiciona_pedidos(problema, solucao):
     for indice in range(problema.o):
         if not solucao.pedidosDisp[indice]:
             valida = True
+            itens_totais = 0
             for item, qnt in problema.orders[indice].items():
+                itens_totais += qnt
                 if qnt > solucao.universoC[item]:
                     valida = False
                     break
             if valida:
-                pedidos_viaveis.append(indice)
+                pedidos_viaveis.append([indice, itens_totais])
 
     # Selecionando os melhores pedidos (os que tem mais itens e que não quebram a restrição de ub).
-    while True:
-        # Buscando o melhor pedido para o instante atual.
-        melhor_pedido = [-1, -1]                # [índice do melhor pedido, total de itens].
-        for indice in pedidos_viaveis:
-            if not solucao.pedidosDisp[indice]:
-                soma = 0
-                valida = True
-                for item, qnt in problema.orders[indice].items():
-                    if qnt > solucao.universoC[item]:
-                        valida = False
-                        break
-                    else:
-                        soma += qnt
-                if valida and solucao.qntItens + soma <= problema.ub and soma > melhor_pedido[1]:
-                    melhor_pedido[0] = indice
-                    melhor_pedido[1] = soma
-        # Encerrando loop caso não tenha encontrado nenhum.
-        if melhor_pedido[0] == -1:
-            break
-        # Atualizando o universo dos pedidos.
-        solucao.qntItens += melhor_pedido[1]
-        solucao.pedidosDisp[melhor_pedido[0]] = 1
-        solucao.pedidos.append(melhor_pedido[0])
-        for item, qnt in problema.orders[melhor_pedido[0]].items():
-            solucao.universoC[item] -= qnt
-            solucao.itensP[item] += qnt
+    pedidos_viaveis.sort(key = lambda i: i[1], reverse = True)
+    for pedido in pedidos_viaveis:
+        valida = True
+        for item, qnt in problema.orders[pedido[0]].items():
+            if qnt > solucao.universoC[item]:
+                valida = False
+                break
+        if valida and solucao.qntItens + pedido[1] <= problema.ub:
+            solucao.qntItens += pedido[1]
+            solucao.pedidosDisp[pedido[0]] = 1
+            solucao.pedidos.append(pedido[0])
+            for item, qnt in problema.orders[pedido[0]].items():
+                solucao.universoC[item] -= qnt
+                solucao.itensP[item] += qnt
 
     return solucao
 
