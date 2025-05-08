@@ -1,6 +1,6 @@
 import Metodos
 from collections import defaultdict
-from random import choice, choices
+from random import choice, choices, randint, shuffle
 from time import perf_counter
 
 """
@@ -74,12 +74,17 @@ def hibrida(problema):
 
 
 """
-Descrição: heurística construtiva aleatória para o problema de seleção de corredores e pedidos. A heurística seleciona corredores e pedidos de forma aleatória, respeitando as restrições do problema.
+Heurística construtiva aleatória para o problema de seleção de corredores e pedidos. A cada execução, os corredores são embaralhados e adicionados um a um à solução. Ao incluir um novo corredor, são identificados os pedidos viáveis com base no universo atual de itens disponíveis, e esses pedidos também são embaralhados.
+
+Se a quantidade mínima de itens ainda não foi atingida (limite inferior), a heurística tenta adicionar todos os pedidos possíveis respeitando o limite superior. Caso o limite inferior já tenha sido alcançado, uma quantidade aleatória de pedidos viáveis é selecionada.
+
+A construção é interrompida sempre que a nova solução não apresenta melhora em relação à anterior. A única exceção ocorre durante a construção de uma solução ainda inviável (abaixo do limite inferior), onde a heurística continua mesmo sem melhora objetiva.
+
 Entrada: instância do problema contendo corredores, pedidos, limites e demais dados.
 Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução.
 """
 def aleatorio(problema):
-    sol = Metodos.solucao(
+    solucao = Metodos.solucao(
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),
@@ -93,62 +98,70 @@ def aleatorio(problema):
         perf_counter()
     )
 
-    corredores_disponiveis = set(range(problema.a))
-    pedidos_disponiveis = set(range(problema.o))
+    corredores_selecionados = list(range(problema.a))       # Lista dos corredores embaralhados.
+    shuffle(corredores_selecionados)
 
-    while corredores_disponiveis:
-        # Selecionando um corredor aleatoriamente.
-        corredor = choice(list(corredores_disponiveis))
-        corredores_disponiveis.remove(corredor)
+    # Percorrendo os corredores.
+    for corredor in corredores_selecionados:
+        nova_solucao = solucao.clone()
 
         # Atualizando universo dos corredores.
-        sol.corredores.append(corredor)
-        sol.corredoresDisp[corredor] = 1
-        sol.qntCorredores += 1
+        nova_solucao.corredores.append(corredor)
+        nova_solucao.corredoresDisp[corredor] = 1
+        nova_solucao.qntCorredores += 1
 
         for item, qnt in problema.aisles[corredor].items():
-            sol.itensC[item] += qnt
-            sol.universoC[item] += qnt
+            nova_solucao.itensC[item] += qnt
+            nova_solucao.universoC[item] += qnt
 
-        # Selecionando pedidos que melhor se adequam ao corredor aleatoriamente.
-        while sol.qntItens < problema.ub:
-            # Filtrando os pedidos possíveis para os corredores selecionados.
-            pedidos_viaveis = []
-            for pedido in pedidos_disponiveis:
+        # Verificando os pedidos disponíveis.
+        pedidos_sorteados = []                              # Lista dos pedidos possíveis aleatórios.
+        quantidade = 0                                      # Quantidade de pedidos possíveis.
+        for indice in range(problema.o):
+            if not nova_solucao.pedidosDisp[indice]:
                 valida = True
-                soma_itens = 0
-                for item, qnt in problema.orders[pedido].items():
-                    if qnt > sol.universoC[item]:
+                for item, qnt in problema.orders[indice].items():
+                    if qnt > nova_solucao.universoC[item]:
                         valida = False
                         break
-                    soma_itens += qnt
+                if valida:
+                    pedidos_sorteados.append(indice)
+                    quantidade += 1
 
-                if valida and sol.qntItens + soma_itens <= problema.ub and pedido not in sol.pedidos:
-                    # Adicionando o pedido à lista de pedidos viáveis.
-                    pedidos_viaveis.append(pedido)
+        # Adicionando os pedidos.
+        if quantidade:
+            if quantidade != 1:
+                shuffle(pedidos_sorteados)
 
-            if not pedidos_viaveis:
-                break
+            # Define quantos pedidos tentar adicionar.
+            limite_pedidos = randint(1, quantidade) if nova_solucao.qntItens < problema.lb else quantidade
 
-            # Selecionando um pedido aleatoriamente entre os viáveis.
-            pedido = choice(pedidos_viaveis)
-            pedidos_disponiveis.remove(pedido)
+            for indice in pedidos_sorteados[:limite_pedidos]:
+                if not nova_solucao.pedidosDisp[indice]:
+                    valida = True
+                    soma = 0
+                    for item, qnt in problema.orders[indice].items():
+                        soma += qnt
+                        if qnt > nova_solucao.universoC[item]:
+                            valida = False
+                            break
+                    if valida and nova_solucao.qntItens + soma <= problema.ub:
+                        nova_solucao.qntItens += soma
+                        nova_solucao.pedidosDisp[indice] = 1
+                        nova_solucao.pedidos.append(indice)
+                        for item, qnt in problema.orders[indice].items():
+                            nova_solucao.universoC[item] -= qnt
+                            nova_solucao.itensP[item] += qnt
 
-            # Atualizando o universo dos pedidos.
-            soma_itens = sum(problema.orders[pedido].values())
-            sol.qntItens += soma_itens
-            sol.pedidosDisp[pedido] = 1
-            sol.pedidos.append(pedido)
-            for item, qnt in problema.orders[pedido].items():
-                sol.universoC[item] -= qnt
-                sol.itensP[item] += qnt
+        # Verificando a nova solução.
+        nova_solucao.objetivo = Metodos.funcao_objetivo(problema, nova_solucao.itensP, nova_solucao.itensC) / nova_solucao.qntCorredores
+        if nova_solucao.objetivo > solucao.objetivo or nova_solucao.qntItens < problema.lb:
+            solucao = nova_solucao
+        else:
+            break
 
-        # Calculando o valor da função objetivo.
-        sol.objetivo = Metodos.funcao_objetivo(problema, sol.itensP, sol.itensC) / max(1, sol.qntCorredores)
-
-    sol.tempo = perf_counter() - sol.tempo
-
-    return sol
+    solucao.tempo = perf_counter() - solucao.tempo
+    return solucao
 
 """
 Descrição: heurística construtiva que usa estratégia gulosa baseada nos pesos de concetração dos itens em cada pedido e em cada corredor para ranqueá-los e selecionar os pedidos que satisfazem os corredores.
@@ -250,5 +263,5 @@ def gulosa(problema):
 
     sol.objetivo = sol.qntItens / sol.qntCorredores if sol.qntCorredores else 0.0
     sol.tempo = perf_counter() - sol.tempo
-    
+
     return sol
