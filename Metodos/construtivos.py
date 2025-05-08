@@ -1,15 +1,22 @@
 import Metodos
+import Processa
 from collections import defaultdict
 from random import choice, choices, randint, shuffle
 from time import perf_counter
 
-"""
-Descrição: heurística construtiva híbrida (gulosa + aleatória) para o problema de seleção de corredores e pedidos. A heurística seleciona corredores com probabilidade proporcional à sua contribuição potencial (peso), calculada com base na demanda dos itens. Após selecionar um corredor, os pedidos são escolhidos gulosamente respeitando as restrições, maximizando a função objetivo.
-Entrada: instância do problema contendo corredores, pedidos, limites e demais dados.
-Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução.
-"""
-def hibrida(problema):
-    sol = Metodos.solucao(
+def hibrida(problema: Processa.Problema) -> Metodos.Solucao:
+    """
+    Heurística construtiva híbrida (gulosa + aleatória) para o problema de seleção de corredores e pedidos.
+
+    A heurística seleciona corredores com probabilidade proporcional à sua contribuição potencial (peso), calculada com base na demanda dos itens. Após selecionar um corredor, os pedidos são escolhidos gulosamente respeitando as restrições, maximizando a função objetivo.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+
+    Returns:
+        solucao (Solucao): Dataclass representando a solução construída, incluindo estruturas auxiliares.
+    """
+    sol = Metodos.Solucao(
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),
@@ -72,19 +79,20 @@ def hibrida(problema):
 
     return sol
 
+def aleatorio(problema: Processa.Problema) -> Metodos.Solucao:
+    """
+    Heurística construtiva aleatória para o problema de seleção de corredores e pedidos.
 
-"""
-Heurística construtiva aleatória para o problema de seleção de corredores e pedidos. A cada execução, os corredores são embaralhados e adicionados um a um à solução. Ao incluir um novo corredor, são identificados os pedidos viáveis com base no universo atual de itens disponíveis, e esses pedidos também são embaralhados.
+    Os corredores são embaralhados e adicionados um a um. Ao adicionar um corredor, são avaliados os pedidos que podem ser atendidos com o novo universo de itens. Se o limite inferior ainda não foi atingido, tenta-se adicionar todos os pedidos possíveis. Caso o limite já tenha sido atingido, uma quantidade aleatória de pedidos é selecionada. A construção termina quando a nova solução não melhora a anterior, exceto durante a construção inicial de uma solução viável.
 
-Se a quantidade mínima de itens ainda não foi atingida (limite inferior), a heurística tenta adicionar todos os pedidos possíveis respeitando o limite superior. Caso o limite inferior já tenha sido alcançado, uma quantidade aleatória de pedidos viáveis é selecionada.
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
 
-A construção é interrompida sempre que a nova solução não apresenta melhora em relação à anterior. A única exceção ocorre durante a construção de uma solução ainda inviável (abaixo do limite inferior), onde a heurística continua mesmo sem melhora objetiva.
+    Returns:
+        solucao (Solucao): Dataclass representando a solução construída, incluindo estruturas auxiliares.
+    """
 
-Entrada: instância do problema contendo corredores, pedidos, limites e demais dados.
-Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução.
-"""
-def aleatorio(problema):
-    solucao = Metodos.solucao(
+    solucao = Metodos.Solucao(
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),
@@ -163,13 +171,20 @@ def aleatorio(problema):
     solucao.tempo = perf_counter() - solucao.tempo
     return solucao
 
-"""
-Descrição: heurística construtiva que usa estratégia gulosa baseada nos pesos de concetração dos itens em cada pedido e em cada corredor para ranqueá-los e selecionar os pedidos que satisfazem os corredores.
-Entrada: instância do problema contendo corredores, pedidos, limites e demais dados.
-Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução.
-"""
-def gulosa(problema):
-    sol = Metodos.solucao(
+def gulosa(problema: Processa.Problema) -> Metodos.Solucao:
+    """
+    Heurística construtiva gulosa para o problema de seleção de corredores e pedidos.
+
+    Os corredores e pedidos são ranqueados de acordo com a concentração de itens, e com isso os melhores são selecionados.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+
+    Returns:
+        solucao (Solucao): Dataclass representando a solução construída, incluindo estruturas auxiliares.
+    """
+
+    solucao = Metodos.Solucao(
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),
@@ -233,35 +248,35 @@ def gulosa(problema):
     # Seleção dos pedidos para satisfazer os corredores.
     for idx_corredor in lista_idx_corredores_ranqueados:
         corredor = problema.aisles[idx_corredor]
-        sol.corredores.append(idx_corredor)
-        sol.corredoresDisp[idx_corredor] = 1
-        sol.qntCorredores += 1
+        solucao.corredores.append(idx_corredor)
+        solucao.corredoresDisp[idx_corredor] = 1
+        solucao.qntCorredores += 1
 
         # Acumulação dos itens dos corredores.
         for item, qtd in corredor.items():
-            sol.itensC[item] += qtd
-            sol.universoC[item] += qtd
+            solucao.itensC[item] += qtd
+            solucao.universoC[item] += qtd
             universo_temporario[item] += qtd
 
         # Teste dos pedidos em ordem de ranqueamento.
         for idx_pedido in lista_idx_pedidos_ranqueados:
-            if sol.pedidosDisp[idx_pedido]:
+            if solucao.pedidosDisp[idx_pedido]:
                 continue
             pedido = problema.orders[idx_pedido]
             # Verificação de UB, se verdadeiro -> pula este pedido e vai para o próximo.
-            if sol.qntItens + sum(pedido.values()) > problema.ub:
+            if solucao.qntItens + sum(pedido.values()) > problema.ub:
                 continue
             # Verificação de se o pedido cabe completamente no inventário temporário.
             if all(universo_temporario[item] >= qtd for item, qtd in pedido.items()):
                 # Alocação do pedido e consumo do inventário.
                 for item, qtd in pedido.items():
                     universo_temporario[item] -= qtd
-                    sol.itensP[item] += qtd
-                sol.pedidos.append(idx_pedido)
-                sol.pedidosDisp[idx_pedido] = 1
-                sol.qntItens += sum(pedido.values())
+                    solucao.itensP[item] += qtd
+                solucao.pedidos.append(idx_pedido)
+                solucao.pedidosDisp[idx_pedido] = 1
+                solucao.qntItens += sum(pedido.values())
 
-    sol.objetivo = sol.qntItens / sol.qntCorredores if sol.qntCorredores else 0.0
-    sol.tempo = perf_counter() - sol.tempo
+    solucao.objetivo = solucao.qntItens / solucao.qntCorredores if solucao.qntCorredores else 0.0
+    solucao.tempo = perf_counter() - solucao.tempo
 
-    return sol
+    return solucao

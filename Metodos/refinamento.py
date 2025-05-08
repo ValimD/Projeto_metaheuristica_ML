@@ -1,16 +1,20 @@
 import Metodos
 import numpy as np
-from time import perf_counter
+import Processa
 from collections import defaultdict
-from sklearn.cluster import Birch
-from sklearn.cluster import MiniBatchKMeans
-from sklearn.feature_extraction import DictVectorizer
 from random import choice
+from sklearn.cluster import MiniBatchKMeans
+from time import perf_counter
 
-"""
-Descrição: constrói dicts de cluster->{lista de índices} para pedidos e corredores.
-"""
 def construir_clusters_de_dicts(labels_pedidos, labels_corredores):
+    """
+    Função responsável por construir dicts de cluster->{lista de índices} para pedidos e corredores.
+
+    Args:
+        labels_pedidos ():
+        labels_corredores ():
+    """
+
     clusters_ped = defaultdict(list)
     for idx, lab in enumerate(labels_pedidos):
         clusters_ped[lab].append(idx)
@@ -20,12 +24,16 @@ def construir_clusters_de_dicts(labels_pedidos, labels_corredores):
     return clusters_ped, clusters_corr
 
 
-"""
-pos: posição na lista solucao.corredores onde trocamos o corredor
-novo_c: ID do corredor que entra
-problema: para acessar problema.aisles
-"""
-def atualizaCorredores(solucao, problema, sol_vizinha, novo_c, pos):
+def atualizaCorredores(solucao: Metodos.Solucao, problema: Processa.Problema, sol_vizinha, novo_c, pos):
+    """
+    Args:
+        solucao (Solucao): Dataclass representando a solução inicial, incluindo estruturas auxiliares.
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        sol_vizinha ():
+        novo_c: ID do corredor que entra
+        pos: posição na lista solucao.corredores onde trocamos o corredor
+    """
+
     # 1) identifica IDs
     corredor_antigo = solucao.corredores[pos]
 
@@ -47,12 +55,16 @@ def atualizaCorredores(solucao, problema, sol_vizinha, novo_c, pos):
     return sol_vizinha
 
 
-"""
-pos: posição na lista solucao.pedidos onde ocorre a troca
-novo_p: ID do pedido que entra
-problema: para acessar problema.orders
-"""
-def atualizaPedidos(solucao, problema, sol_vizinha, novo_p, pos):
+def atualizaPedidos(solucao: Metodos.Solucao, problema: Processa.Problema, sol_vizinha, novo_p, pos):
+    """
+    Args:
+        solucao (Solucao): Dataclass representando a solução inicial, incluindo estruturas auxiliares.
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        sol_vizinha ():
+        novo_p: ID do pedido que entra
+        pos: posição na lista solucao.pedidos onde ocorre a troca
+    """
+
     # 1) identifica ID do pedido antigo
     pedido_antigo = solucao.pedidos[pos]
 
@@ -77,12 +89,23 @@ def atualizaPedidos(solucao, problema, sol_vizinha, novo_p, pos):
     return sol_vizinha
 
 
-"""
-Descrição: gera um vizinho da solucao trocando ou um pedido ou um corredor dentro do mesmo cluster.
-tipo: 'pedido' ou 'corredor'
-Saída: instancia do dataclass, contendo os elementos principais e auxiliares da nova solução.
-"""
-def gerar_sol_vizinha(solucao, problema, tipo, clusters_ped, clusters_corr, label_pedidos, label_corredores):
+def gerar_sol_vizinha(solucao: Metodos.Solucao, problema: Processa.Problema, tipo: str, clusters_ped, clusters_corr, label_pedidos, label_corredores) -> Metodos.Solucao | None:
+    """
+    Função responsável por gerar um vizinho da solução trocando ou um pedido ou um corredor dentro do mesmo cluster.
+
+    Args:
+        solucao (Solucao): Dataclass representando a solução inicial, incluindo estruturas auxiliares.
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        tipo (str): String simbolizando qual vai ser a troca.
+        clusters_ped ():
+        clusters_corr ():
+        label_pedidos ():
+        label_corredores ():
+
+    Returns:
+        sol_vizinho (Solucao | None):
+    """
+
     sol_vizinha = solucao.clone()
 
     if tipo == 'pedido':
@@ -137,15 +160,23 @@ def gerar_sol_vizinha(solucao, problema, tipo, clusters_ped, clusters_corr, labe
         else:
             sol_vizinha = atualizaCorredores(solucao, problema, sol_vizinha, novo_c, i)
 
-
-
     return sol_vizinha
 
 
-"""
-Descrição: executa um VNS simples alternando entre vizinhança de pedidos e de corredores.
-"""
-def refinamento_cluster_vns(problema, solucao):
+def refinamento_cluster_vns(problema: Processa.Problema, solucao: Metodos.Solucao) -> Metodos.Solucao:
+    """
+    Função responsável por executar um VNS simples alternando entre vizinhança de pedidos e de corredores.
+
+    Redireciona para a melhor_vizinhanca se o tamanho do problema for menor do que 10.
+
+    Args:
+        solucao (Solucao): Dataclass representando a solução inicial, incluindo estruturas auxiliares.
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+
+    Returns:
+        best (Solucao): Dataclass representando a solução refinada, incluindo estruturas auxiliares.
+    """
+
     inicio = perf_counter()
     best = solucao
     iter_sem_melhora = 0
@@ -224,12 +255,20 @@ def clusterizacao_MBKM(problema):
     return labels_pedidos, labels_corredores
 
 
-"""
-Descrição: heurística de refinamento baseada em melhor vizinhança, ela procura qual das vizinhanças possíveis (adicionando corredor, trocando corredores, removendo corredor) tem o melhor valor de função objetivo. Tanto os corredores, como os pedidos adicionados quando possível, são escolhidos de forma gulosa (corredores por peso, e pedidos por quantidade de itens).
-Entrada: instância do problema contendo corredores, pedidos, limites e demais dados; instancia do dataclass, contendo os elementos principais e auxiliares da solução inicial.
-Saída: instancia do dataclass, contendo os elementos principais e auxiliares da nova solução.
-"""
-def melhor_vizinhanca(problema, solucao):
+def melhor_vizinhanca(problema: Processa.Problema, solucao: Metodos.Solucao) -> Metodos.Solucao:
+    """
+    Heurística de refinamento baseada em melhor vizinhança.
+
+    Procura qual das vizinhanças possíveis (adicionando corredor, trocando corredores, removendo corredor) tem o melhor valor de função objetivo. Tanto os corredores, como os pedidos adicionados quando possível, são escolhidos de forma gulosa (corredores por peso, e pedidos por quantidade de itens).
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        solucao (Solucao): Dataclass representando a solução inicial, incluindo estruturas auxiliares.
+
+    Returns:
+        solucao (Solucao): Dataclass representando a solução refinada, incluindo estruturas auxiliares.
+    """
+
     inicio = perf_counter()
 
     # Removendo os corredores redundantes da solução inicial.

@@ -1,8 +1,9 @@
+import Processa
 from dataclasses import dataclass
 from typing import Dict, List
 
 @dataclass
-class solucao:
+class Solucao:
     universoC: Dict[int, int]     # Universo dos itens disponíveis nos corredores selecionados.
     itensC: Dict[int, int]        # Universo dos itens totais nos corredores selecionados.
     itensP: Dict[int, int]        # Universo dos itens totais nos pedidos selecionados.
@@ -16,7 +17,7 @@ class solucao:
     tempo: float                  # Tempo de execução da heurística.
 
     def clone(self):
-        return solucao(
+        return Solucao(
             self.universoC.copy(),
             self.itensC.copy(),
             self.itensP.copy(),
@@ -30,12 +31,18 @@ class solucao:
             self.tempo
         )
 
-"""
-Descrição: função responsável por adicionar os pedidos gulosamente na solução informada.
-Entrada: instância do problema contendo corredores, pedidos, limites e demais dados; instancia do dataclass, contendo os elementos principais e auxiliares da solução.
-Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução com os novos pedidos.
-"""
-def adiciona_pedidos(problema, solucao):
+def adiciona_pedidos(problema: Processa.Problema, solucao: Solucao) -> Solucao:
+    """
+    Função responsável por adicionar os pedidos viáveis de forma gulosa na solução informada.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        solucao (Solucao): Dataclass representando a solução, incluindo estruturas auxiliares.
+
+    Returns:
+        solucao (Solucao): Dataclass representando a solução com os novos pedidos, incluindo estruturas auxiliares.
+    """
+
     # Filtrando os pedidos possíveis para os corredores selecionados.
     pedidos_viaveis = []                        # Lista de pedidos viáveis com os corredores atualmente selecionados.
     for indice in range(problema.o):
@@ -68,12 +75,19 @@ def adiciona_pedidos(problema, solucao):
 
     return solucao
 
-"""
-Descrição: função responsável por adicionar um novo corredor na solução informada.
-Entrada: instância do problema contendo corredores, pedidos, limites e demais dados; instancia do dataclass, contendo os elementos principais e auxiliares da solução; índice do corredor que será adicionado.
-Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução com o novo corredor.
-"""
-def adiciona_corredor(problema, solucao, corredor_max):
+def adiciona_corredor(problema: Processa.Problema, solucao: Solucao, corredor_max: int) -> Solucao:
+    """
+    Função responsável por adicionar um novo corredor na solução informada.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        solucao (Solucao): Dataclass representando a solução, incluindo estruturas auxiliares.
+        corredor_max (int): Índice do corredor que será inserido.
+
+    Returns:
+        solucao (Solucao): Dataclass representando a solução com o novo corredor, incluindo estruturas auxiliares.
+    """
+
     primeira_vizinhanca = solucao.clone()       # Variáveis da vizinhança baseada na adição de um corredor.
 
     # Adicionando o novo corredor se ele existe.
@@ -91,12 +105,20 @@ def adiciona_corredor(problema, solucao, corredor_max):
 
     return primeira_vizinhanca
 
-"""
-Descrição: função responsável por trocar os dois corredores informados na solução informada.
-Entrada: instância do problema contendo corredores, pedidos, limites e demais dados; instancia do dataclass, contendo os elementos principais e auxiliares da solução; índice do corredor que será adicionado; índice do corredor que será removido.
-Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução com o corredor trocado.
-"""
-def troca_corredor(problema, solucao, corredor_max, corredor_min):
+def troca_corredor(problema: Processa.Problema, solucao: Solucao, corredor_max: int, corredor_min: int) -> Solucao:
+    """
+    Função responsável por trocar dois corredores na solução informada.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        solucao (Solucao): Dataclass representando a solução, incluindo estruturas auxiliares.
+        corredor_max (int): Índice do corredor que será inserido.
+        corredor_min (int): Índice do corredor que será removido.
+
+    Returns:
+        solucao (Solucao): Dataclass representando a solução com os corredores trocados, incluindo estruturas auxiliares.
+    """
+
     segunda_vizinhanca = solucao.clone()        # Variáveis da vizinhança baseada na troca de corredores.
 
     # Trocando os corredores caso o corredor de peso máximo exista.
@@ -135,12 +157,19 @@ def troca_corredor(problema, solucao, corredor_max, corredor_min):
 
     return segunda_vizinhanca
 
-"""
-Descrição: função responsável por remover um corredor na solução informada.
-Entrada: instância do problema contendo corredores, pedidos, limites e demais dados; instancia do dataclass, contendo os elementos principais e auxiliares da solução; índice do corredor que será removido.
-Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução com o novo corredor.
-"""
-def remove_corredor(problema, solucao, corredor_min):
+def remove_corredor(problema: Processa.Problema, solucao: Solucao, corredor_min: int) -> Solucao:
+    """
+    Função responsável por remover um corredor da solução informada.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        solucao (Solucao): Dataclass representando a solução, incluindo estruturas auxiliares.
+        corredor_min (int): Índice do corredor que será removido.
+
+    Returns:
+        solucao (Solucao): Dataclass representando a solução com o corredor removido, incluindo estruturas auxiliares.
+    """
+
     terceira_vizinhanca = solucao.clone()       # Variáveis da vizinhança baseada na remoção de um corredor.
 
     # Removendo o corredor.
@@ -174,12 +203,18 @@ def remove_corredor(problema, solucao, corredor_min):
 
     return terceira_vizinhanca
 
-"""
-Descrição: função auxiliar responsável por remover os corredores redundantes de uma solução dada.
-Entrada: instância do problema contendo corredores, pedidos, limites e demais dados.
-Saída: instancia do dataclass, contendo os elementos principais e auxiliares da solução modificada.
-"""
-def remove_redundantes(problema, solucao):
+def remove_redundantes(problema: Processa.Problema, solucao: Solucao) -> Solucao:
+    """
+    Função responsável por remover os corredores redundantes da solução informada.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        solucao (Solucao): Dataclass representando a solução, incluindo estruturas auxiliares.
+
+    Returns:
+        solucao (Solucao): Dataclass representando a solução com os corredores removidos, incluindo estruturas auxiliares.
+    """
+
     # Descobrindo quais corredores são redundantes (não considera casos nos quais se um corredor é marcado como redundante, o próximo pode não ser mais).
     corredores_redundantes = []
     for indice in solucao.corredores:
@@ -217,14 +252,19 @@ def remove_redundantes(problema, solucao):
 
     return solucao
 
-"""
-Descrição: função que calcula a quantidade total de itens nos pedidos da solução, e verifica se alguma restrição foi violada.
-Entrada: objeto do problema, itens dos pedidos da solução, itens dos corredores da solução.
-Saída: quantidade de itens ou 0 caso uma restrição tenha sido violada.
+def funcao_objetivo(problema: Processa.Problema, itensP: dict, itensC: dict) -> int:
+    """
+    Função que calcula a quantidade total de itens nos pedidos da solução, e verifica se alguma restrição foi violada.
 
-Observação: para otimizar a função, é responsabilidade dos métodos gerenciar os dicionários dos itens, e dividir o valor retornado pela quantidade de corredores.
-"""
-def funcao_objetivo(problema, itensP, itensC):
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        itensP (dict): Dicionário mapeando os itens dos pedidos selecionados para a quantidade total.
+        itensC (dict): Dicionário mapeando os itens dos corredores selecionados para a quantidade total.
+
+    Returns:
+        soma (int): Quantidade total de itens em itensP `ou` 0 se alguma restrição foi violada.
+    """
+
     # Calculando quantidade total de itens.
     soma = sum(itensP.values())
     # Verificando as restrições de limites.
