@@ -48,9 +48,9 @@ def atualizaCorredores(solucao: Metodos.Solucao, problema: Processa.Problema, so
         sol_vizinha.itensC[item]   = sol_vizinha.itensC.get(item, 0)   + qtd
 
     # 4) atualiza as listas de corredores
-    sol_vizinha.corredores[pos]    = novo_c
+    sol_vizinha.corredores[pos] = novo_c
     sol_vizinha.corredoresDisp[corredor_antigo] = False
-    sol_vizinha.corredoresDisp[novo_c]         = True
+    sol_vizinha.corredoresDisp[novo_c] = True
 
     return sol_vizinha
 
@@ -65,23 +65,24 @@ def atualizaPedidos(solucao: Metodos.Solucao, problema: Processa.Problema, sol_v
         pos: posição na lista solucao.pedidos onde ocorre a troca
     """
 
-    # 1) identifica ID do pedido antigo
+    # 1) ID do pedido antigo
     pedido_antigo = solucao.pedidos[pos]
 
     # 2) subtrai as quantidades do pedido antigo
     for item, qtd in problema.orders[pedido_antigo].items():
-        sol_vizinha.universoP[item] -= qtd
-        sol_vizinha.itensP[item]    -= qtd
+        sol_vizinha.itensP[item] -= qtd
+        # se restar zero, podemos opcionalmente remover a chave:
+        if sol_vizinha.itensP[item] == 0:
+            del sol_vizinha.itensP[item]
 
     # 3) adiciona as quantidades do novo pedido
     for item, qtd in problema.orders[novo_p].items():
-        sol_vizinha.universoP[item] = sol_vizinha.universoP.get(item, 0) + qtd
-        sol_vizinha.itensP[item]    = sol_vizinha.itensP.get(item,    0) + qtd
+        sol_vizinha.itensP[item] = sol_vizinha.itensP.get(item, 0) + qtd
 
     # 4) atualiza a lista de pedidos e o vetor de disponibilidade
     sol_vizinha.pedidos[pos]        = novo_p
-    sol_vizinha.pedidosDisp[pedido_antigo] = False
-    sol_vizinha.pedidosDisp[novo_p]       = True
+    sol_vizinha.pedidosDisp[pedido_antigo] = 0
+    sol_vizinha.pedidosDisp[novo_p]       = 1
 
     # 5) recalcula qntItens como soma de todos os itens em itensP
     sol_vizinha.qntItens = sum(sol_vizinha.itensP.values())
@@ -131,17 +132,16 @@ def gerar_sol_vizinha(solucao: Metodos.Solucao, problema: Processa.Problema, tip
         # Verificando se o novo pedido não ultrapassa a capacidade do corredor
         if sol_vizinha.qntItens > problema.ub or novo_p in solucao.pedidos or sol_vizinha.qntItens < problema.lb:
             return None
-
-        for item, qnt in novo_p.items():
-            # Verificando se o novo pedido não ultrapassa a capacidade do corredor
-            if sol_vizinha.itensC[item] < qnt + sol_vizinha.itensP[item]:
-                return None
-
+        
         sol_vizinha.pedidos[i] = novo_p
-        sol_vizinha.qntItens = sum(label_pedidos[novo_p].values())
-        for item in label_pedidos[novo_p]:
-            # Verificando se o novo pedido não ultrapassa a capacidade do corredor
-            if label_pedidos[novo_p][item] + sol_vizinha.pedidos[i][item] > solucao.limites[item]:
+        sol_vizinha.qntItens = sum(sol_vizinha.itensP.values())
+
+        # antes de trocar efetivamente o pedido, verifique viabilidade:
+        for item, qtd in problema.orders[novo_p].items():
+            demanda_antes = sol_vizinha.itensP.get(item, 0)
+            capacidade   = sol_vizinha.itensC.get(item, 0)
+            if demanda_antes + qtd > capacidade:
+                # não cabe este pedido na oferta atual
                 return None
 
     else:
@@ -191,31 +191,28 @@ def refinamento_cluster_vns(problema: Processa.Problema, solucao: Metodos.Soluca
 
 
     while iter_sem_melhora < 1000:
-        tipo = 'pedido' if k < 1 else 'corredor'
+        if k%4 < 2:
+            tipo = 'pedido'
+        else:
+            tipo = 'corredor'
         # Gera uma solução vizinha
         viz = gerar_sol_vizinha(best, problema, tipo, clusters_ped, clusters_corr, pedidos, corredores)
         if viz is None:
-            if  k == 4:
-                k = 1
-                iter_sem_melhora += 1
-
-            else:
-                k += 1
-                iter_sem_melhora += 1
-            continue
-
-
-        viz.objetivo = Metodos.funcao_objetivo(problema, viz.itensP, viz.itensC)
-
+            k += 1
+            iter_sem_melhora += 1
+            continue    
+            
+        viz.objetivo = Metodos.funcao_objetivo(problema, viz.itensP, viz.itensC)/viz.qntCorredores
+        k += 1
+        
         # Se melhorou, aceite e reinicie vizinhança
         if viz.objetivo > best.objetivo:
+            print(f"Melhorou: {viz.objetivo:.2f} > {best.objetivo:.2f}")
             best = viz
             clusters_ped, clusters_corr = construir_clusters_de_dicts(pedidos, corredores)
-            k = 1
             iter_sem_melhora = 0
         else:
             # muda de vizinhançax'
-            k = 1 if k == 4 else k + 1
             iter_sem_melhora += 1
 
     fim = perf_counter()
