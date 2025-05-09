@@ -1,4 +1,5 @@
 import Processa
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Dict, List
 
@@ -215,40 +216,40 @@ def remove_redundantes(problema: Processa.Problema, solucao: Solucao) -> Solucao
         solucao (Solucao): Dataclass representando a solução com os corredores removidos, incluindo estruturas auxiliares.
     """
 
-    # Descobrindo quais corredores são redundantes (não considera casos nos quais se um corredor é marcado como redundante, o próximo pode não ser mais).
-    corredores_redundantes = []
+    # Procurando corredores redundantes, sem considerar que a remoção de um anterior possa tornar o atual não redundante.
+    redundante_por_item = defaultdict(list)                     # Dicionário mapeando os itens para listas contendo o índice do corredor redundante, e a quantidade do item nele.
+    corredores_importantes = [0 for _ in range(problema.a)]     # Lista de 0 e 1, sendo que 1 representa que o corredor é importante.
     for indice in solucao.corredores:
         redundante = True
         for item, qnt in problema.aisles[indice].items():
             if solucao.itensP[item] > solucao.universoC[item] - qnt:
                 redundante = False
+                corredores_importantes[indice] = 1
                 break
         if redundante:
-            corredores_redundantes.append(indice)
+            for item in problema.aisles[indice].keys():
+                redundante_por_item[item].append([indice, problema.aisles[indice][item]])
 
-    # Descobrindo qual dos redundantes deve permanecer para não quebrar com os pedidos já selecionados (faz isso vendo qual corredor redundante tem a maior quantidade dos itens solicitados).
-    corredores_importantes = [0 for _ in range(problema.a)]     # Lista de 0 e 1, sendo que 1 representa que o corredor é importante.
+    # Verificando qual dos redundantes selecionados anteriormente deve permanecer na solução. Ordena os redundantes do item atual pela quantidade do item, e vai removendo os com menor quantidade até encontrar um que se torna importante.
     for item, qnt in solucao.itensP.items():
         if qnt != 0:
-            melhor_corredor = None
-            maior_qnt = 0
-            for indice in corredores_redundantes:
-                valor = problema.aisles[indice].get(item, 0)
-                if valor > maior_qnt:
-                    melhor_corredor = indice
-                    maior_qnt = valor
-            if melhor_corredor is not None:
-                corredores_importantes[melhor_corredor] = 1
+            qnt_removida = 0
+            redundante_por_item[item].sort(key= lambda x : x[1])
+            for indice, qnt in redundante_por_item[item]:
+                if solucao.itensP[item] > solucao.universoC[item] - (qnt_removida + qnt):
+                    corredores_importantes[indice] = 1
+                else:
+                    qnt_removida += qnt
 
-    # Removendo os corredores que realmente são redundantes.
-    corredores_final = [c for c in corredores_redundantes if not corredores_importantes[c]]
-    for indice in corredores_final:
-        solucao.corredores.remove(indice)
-        solucao.corredoresDisp[indice] = 0
-        solucao.qntCorredores -= 1
-        for item, qnt in problema.aisles[indice].items():
-            solucao.universoC[item] -= qnt
-            solucao.itensC[item] -= qnt
+    # Removendo os corredores redundantes.
+    for indice in range(problema.a):
+        if not corredores_importantes[indice]:
+            solucao.corredores.remove(indice)
+            solucao.corredoresDisp[indice] = 0
+            solucao.qntCorredores -= 1
+            for item, qnt in problema.aisles[indice].items():
+                solucao.universoC[item] -= qnt
+                solucao.itensC[item] -= qnt
 
     return solucao
 

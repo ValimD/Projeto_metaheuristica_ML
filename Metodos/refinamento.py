@@ -276,8 +276,6 @@ def melhor_vizinhanca(problema: Processa.Problema, solucao: Metodos.Solucao) -> 
     for pedido in problema.orders:
         for item, qtd in pedido.items():
             demanda_por_item[item] += qtd
-            if demanda_por_item[item] > problema.ub:
-                demanda_por_item[item] = problema.ub
 
     # Calculando o peso de cada corredor com base na demanda e na quantidade ofertada.
     # Peso de cada corredor é calculado com base na demanda dos itens e na quantidade que ele oferece.
