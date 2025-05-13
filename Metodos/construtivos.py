@@ -83,7 +83,11 @@ def aleatorio(problema: Processa.Problema) -> Metodos.Solucao:
     """
     Heurística construtiva aleatória para o problema de seleção de corredores e pedidos.
 
-    Os corredores são embaralhados e adicionados um a um. Ao adicionar um corredor, são avaliados os pedidos que podem ser atendidos com o novo universo de itens. Se o limite inferior ainda não foi atingido, tenta-se adicionar todos os pedidos possíveis. Caso o limite já tenha sido atingido, uma quantidade aleatória de pedidos é selecionada. A construção termina quando a nova solução não melhora a anterior, exceto durante a construção inicial de uma solução viável.
+    Esta heurística embaralha os corredores e os adiciona um a um à solução. Após cada adição, os pedidos que podem ser atendidos com o universo atual de itens são identificados e embaralhados.
+
+    Enquanto o limite inferior de itens (problema.lb) não for atingido, a heurística tenta adicionar todos os pedidos viáveis. Após o limite, uma quantidade aleatória de pedidos é selecionada.
+
+    A construção é interrompida quando uma nova solução não supera a anterior, assumindo que já foi encontrada uma solução viável. Esse critério evita execuções desnecessárias após atingir uma boa solução.
 
     Args:
         problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).

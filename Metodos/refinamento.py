@@ -270,6 +270,7 @@ def melhor_vizinhanca(problema: Processa.Problema, solucao: Metodos.Solucao) -> 
 
     # Removendo os corredores redundantes da solução inicial.
     solucao = Metodos.remove_redundantes(problema, solucao)
+    solucao.objetivo = Metodos.funcao_objetivo(problema, solucao.itensP, solucao.itensC) / solucao.qntCorredores
 
     # Calculando a demanda de cada item.
     demanda_por_item = defaultdict(int)             # Dicionário da soma total da demanda de cada item em todos os pedidos.
