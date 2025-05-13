@@ -142,7 +142,7 @@ def aleatorio(problema: Processa.Problema) -> Metodos.Solucao:
                 shuffle(pedidos_sorteados)
 
             # Define quantos pedidos tentar adicionar.
-            limite_pedidos = randint(1, quantidade) if nova_solucao.qntItens < problema.lb else quantidade
+            limite_pedidos = randint(1, quantidade) if nova_solucao.qntItens > problema.lb else quantidade
 
             for indice in pedidos_sorteados[:limite_pedidos]:
                 if not nova_solucao.pedidosDisp[indice]:
@@ -163,7 +163,7 @@ def aleatorio(problema: Processa.Problema) -> Metodos.Solucao:
 
         # Verificando a nova solução.
         nova_solucao.objetivo = Metodos.funcao_objetivo(problema, nova_solucao.itensP, nova_solucao.itensC) / nova_solucao.qntCorredores
-        if nova_solucao.objetivo > solucao.objetivo or nova_solucao.qntItens < problema.lb:
+        if nova_solucao.objetivo > solucao.objetivo or nova_solucao.qntItens < problema.lb or nova_solucao.qntItens == 0:
             solucao = nova_solucao
         else:
             break

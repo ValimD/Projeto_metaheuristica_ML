@@ -42,6 +42,6 @@ if __name__ == "__main__":
         print("Heurísticas de refinamento: 0 (nenhuma), 1 (melhor_vizinhanca), 2 (refinamento_cluster_vns)")
     else:
         try:
-            print(main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], float(sys.argv[5])))
+            main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], float(sys.argv[5]))
         except (IndexError, ValueError):
             print("ERRO: Semente deve ser numérica.")
