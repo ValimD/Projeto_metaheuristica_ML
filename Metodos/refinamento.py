@@ -132,7 +132,7 @@ def gerar_sol_vizinha(solucao: Metodos.Solucao, problema: Processa.Problema, tip
         # Verificando se o novo pedido não ultrapassa a capacidade do corredor
         if sol_vizinha.qntItens > problema.ub or novo_p in solucao.pedidos or sol_vizinha.qntItens < problema.lb:
             return None
-        
+
         sol_vizinha.pedidos[i] = novo_p
         sol_vizinha.qntItens = sum(sol_vizinha.itensP.values())
 
@@ -200,14 +200,14 @@ def refinamento_cluster_vns(problema: Processa.Problema, solucao: Metodos.Soluca
         if viz is None:
             k += 1
             iter_sem_melhora += 1
-            continue    
-            
+            continue
+
         viz.objetivo = Metodos.funcao_objetivo(problema, viz.itensP, viz.itensC)/viz.qntCorredores
         k += 1
-        
+
         # Se melhorou, aceite e reinicie vizinhança
         if viz.objetivo > best.objetivo:
-            print(f"Melhorou: {viz.objetivo:.2f} > {best.objetivo:.2f}")
+            #print(f"Melhorou: {viz.objetivo:.2f} > {best.objetivo:.2f}")
             best = viz
             clusters_ped, clusters_corr = construir_clusters_de_dicts(pedidos, corredores)
             iter_sem_melhora = 0

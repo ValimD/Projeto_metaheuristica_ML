@@ -1,10 +1,15 @@
 import Metodos
 import Processa
+import random
 import sys
 
-def main(dataset, arquivo, construtiva, refinamento):
+def main(dataset, arquivo, construtiva, refinamento, semente):
+    # Definindo a semente.
+    random.seed(semente)
+
     # Instanciando problema.
     problema = Processa.Problema(dataset, arquivo)
+
     # Construindo uma solução.
     if construtiva == "0":
         solucao = Metodos.hibrida(problema)
@@ -31,9 +36,12 @@ def main(dataset, arquivo, construtiva, refinamento):
 
 # Verificando argumentos e chamando a main.
 if __name__ == "__main__":
-    if len(sys.argv) < 5:
-        print("Uso correto: python3 main.py <dataset> <nome_arquivo_resultados> <heurística_construtiva> <heurística_refinamento>")
+    if len(sys.argv) < 6:
+        print("Uso correto: python3 main.py <dataset> <nome_arquivo_resultados> <heurística_construtiva> <heurística_refinamento> <semente_aleatoria>")
         print("Heurísticas construtivas: 0 (híbrida), 1 (aleatória), 2 (gulosa)")
         print("Heurísticas de refinamento: 0 (nenhuma), 1 (melhor_vizinhanca), 2 (refinamento_cluster_vns)")
     else:
-        main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+        try:
+            print(main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], float(sys.argv[5])))
+        except (IndexError, ValueError):
+            print("ERRO: Semente deve ser numérica.")

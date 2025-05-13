@@ -243,7 +243,7 @@ def remove_redundantes(problema: Processa.Problema, solucao: Solucao) -> Solucao
 
     # Removendo os corredores redundantes.
     for indice in range(problema.a):
-        if not corredores_importantes[indice]:
+        if not corredores_importantes[indice] and solucao.corredoresDisp[indice]:
             solucao.corredores.remove(indice)
             solucao.corredoresDisp[indice] = 0
             solucao.qntCorredores -= 1
