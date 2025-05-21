@@ -2,11 +2,29 @@ import os
 
 class Problema():
     """
-    Lê o dataset do diretório de Datasets, e trata as informações presente nele.
+    Realiza a leitura e o tratamento dos dados presentes em um arquivo de dataset. A classe carrega as informações referentes 
+    ao número de pedidos, itens e corredores, além dos detalhes de cada pedido e corredor, limites inferior e superior, 
+    e inicializa a estrutura que armazenará os resultados processados.
 
     Args:
-        dataset (str): Nome do dataset que será tratado.
-        arquivo (str): Nome do arquivo em que os resultados serão salvos.
+        dataset (str): Nome do dataset a ser tratado; espera-se que exista um arquivo com nome "<dataset>.txt" no diretório "Datasets".
+        arquivo (str): Nome do arquivo onde os resultados serão salvos no formato CSV.
+
+    Atributos:
+        o (int): Número total de pedidos presentes no dataset.
+        i (int): Número total de itens (indicador de dimensão do dataset).
+        a (int): Número total de corredores disponíveis.
+        orders (List[Dict[int, int]]): Lista contendo dicionários que representam os pedidos. Cada dicionário relaciona um item com a sua quantidade.
+        aisles (List[Dict[int, int]]): Lista contendo dicionários que representam os corredores. Cada dicionário relaciona um item com a sua quantidade no corredor.
+        lb (int): Valor do limite inferior definido no dataset.
+        ub (int): Valor do limite superior definido no dataset.
+        arquivo (str): Nome do arquivo onde os resultados processados serão gravados.
+        result (Dict[str, Any]): Dicionário que armazena os resultados finais, contendo o nome do dataset, listas de pedidos e corredores selecionados, valor da função objetivo e tempo de execução.
+
+    Métodos:
+        imprimeProblema()
+        imprimeResultados()
+        salvaResultado()
     """
 
     def __init__(self, dataset: str, arquivo: str) -> None:
