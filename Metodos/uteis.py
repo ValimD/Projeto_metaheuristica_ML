@@ -323,3 +323,38 @@ def inicia_grafo(problema)->Dict[int, List[tuple]]:
         grafo[c_id].sort(key=lambda x: x[1])
 
     return grafo
+
+
+def jaccard_distance(sol1: 'Solucao', sol2: 'Solucao') -> float:
+    """
+    Calcula a Distância Jaccard entre as máscaras de corredores de duas instâncias de Solucao.
+
+    Args:
+        sol1 (Solucao): A primeira solução.
+        sol2 (Solucao): A segunda solução.
+
+    Returns:
+        float: A Distância Jaccard entre as duas soluções (0.0 se idênticas, 1.0 se disjuntas).
+    """
+    mask1 = sol1.corredores
+    mask2 = sol2.corredores
+
+    if not mask1:  # Trata o caso de máscaras vazias (numero_corredores = 0)
+        return 0.0 if not mask2 else 1.0
+
+    intersect_count = 0
+    union_count = 0
+    
+    for i in range(len(mask1)):
+        if not (mask1[i] ^ mask2[i]):
+            intersect_count += 1
+        
+        if mask1[i] or mask2[i]:
+            union_count += 1
+            
+    if union_count == 0:
+        # Ambas as máscaras são compostas apenas por zeros (nenhum corredor selecionado)
+        return 0.0  # Consideradas idênticas
+
+    jaccard_index = intersect_count / union_count
+    return 1.0 - jaccard_index
