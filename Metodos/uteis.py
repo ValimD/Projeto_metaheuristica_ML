@@ -277,3 +277,49 @@ def funcao_objetivo(problema: Processa.Problema, itensP: dict, itensC: dict) -> 
             return 0
     # Retornando a soma.
     return soma
+
+
+def peso_aresta(problema, corredor_id, pedido_id)->int:
+    """
+    Calcula o peso da aresta entre um corredor e um pedido em um grafo bipartido.
+    O peso corresponde à quantidade de itens faltantes para suprir o pedido com base na oferta disponível
+    no corredor. 
+    Arghs:
+        problema (Processa.Problema): Instância contendo os dados do problema, incluindo as ofertas dos corredores
+                                    e as demandas dos pedidos.
+        corredor_id (int): Índice do corredor cuja oferta será considerada.
+        pedido_id (int): Índice do pedido cuja demanda será avaliada.
+        int: Quantidade de itens faltantes para suprir o pedido ou 9999 se faltarem mais de 15 unidades.
+    Returns:
+        int: Peso da aresta entre o corredor e o pedido, representando a quantidade de itens faltantes.
+    """
+    oferta = problema.aisles[corredor_id]
+    demanda = problema.orders[pedido_id]
+    faltantes = 0
+
+    for item, qnt in demanda.items():
+        faltantes += max(0, qnt - oferta.get(item, 0))
+
+    return faltantes
+
+
+def inicia_grafo(problema)->Dict[int, List[tuple]]:
+    """
+    Inicializa o grafo bipartido que relaciona os corredores aos pedidos.
+    Para cada corredor, a função cria uma lista de arestas para os pedidos, onde cada aresta é representada
+    por uma tupla (pedido, peso). O peso de cada aresta é determinado pela quantidade de itens faltantes para
+    suprir o pedido com a oferta do corredor. A lista de arestas para cada corredor é ordenada em ordem crescente de peso.
+    Args:
+        problema (Processa.Problema): Instância contendo os dados do problema, incluindo as estruturas 'aisles' (corredores) e 'orders' (pedidos).
+    Returns:
+        dict: Um dicionário representando o grafo bipartido, onde a chave é o índice do corredor e o valor é uma lista de tuplas (índice do pedido, peso da aresta).
+    """
+    grafo = defaultdict(list)
+    for c_id in range(len(problema.aisles)):
+        for p_id in range(len(problema.orders)):
+            peso = peso_aresta(problema, c_id, p_id)
+            grafo[c_id].append((p_id, peso))
+        
+        grafo[c_id].sort(key=lambda x: x[1])
+
+    return grafo
