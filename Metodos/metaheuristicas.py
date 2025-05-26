@@ -6,16 +6,33 @@ from random import randint
 from time import perf_counter
 
 def calcula_componente(problema: Processa.Problema, componente_atual: set, particula: dict) -> set:
+    """
+    Função responsável por montar o conjunto contendo os índices dos corredores que serão adicionados e/ou removidos, usando como base o conjunto informado.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        componente_atual (set): Conjunto contendo os índices dos corredores que serão adicionados (conjunto da melhor posição individual, ou global, ou velocidade anterior).
+        particula (dict): Dicionário contendo as informações da partícula, como posição atual.
+
+    Returns:
+        componente (set): Conjunto contendo os índices dos corredores que podem ser adicionados e removidos.
+    """
+
     # Calculando os corredores que podem ser adicionados na solução (elementos que estão no componente atual, mas que não estão na posição atual).
     componente = componente_atual - particula["Xt"]
 
-    # Caso todos os elementos do componente atual estejam na solução, calcula os corredores que podem ser removidos (elementos que estão na posição atual, mas que não estão no componente).
-    if not len(componente):
-        componente = {-corredor for corredor in particula["Xt"] if corredor not in componente_atual}
-        # Como 0 não pode ser representado como negativo (para marcar a remoção), adiciona a quantidade de corredores da instância no lugar (uma vez que os índices vão até essa quantidade - 1).
-        if 0 in componente:
-            componente.discard(0)
-            componente.add(problema.a)
+    # Verificando o 0 que aparece é para ser removido ou adicionado (-0 não existe na operação seguinte).
+    remover_zero = True
+    if 0 in componente:
+        remover_zero = False
+
+    # Calculando os corredores que podem ser removidos (elementos que estão na posição atual, mas que não estão no componente).
+    componente = componente | {-corredor for corredor in particula["Xt"] if corredor not in componente_atual}
+
+    # Como 0 não pode ser representado como negativo (para marcar a remoção), adiciona a quantidade de corredores da instância no lugar (uma vez que os índices vão até essa quantidade - 1).
+    if 0 in componente and remover_zero:
+        componente.discard(0)
+        componente.add(problema.a)
 
     return componente
 
@@ -59,7 +76,7 @@ def pso_discreto(problema: Processa.Problema) -> Metodos.Solucao:
 
     constante_cognitivo = 2                         # Componente cognitivo do PSO (c1).
     constante_social = 2                            # Componente social do PSO (c2).
-    inercia = 2                                     # Peso da inércia (w).
+    inercia = 1                                     # Peso da inércia (w).
 
     # Gerando soluções iniciais.
     objetivos = []                                  # Lista com todas as funções objetivos do enxame atual, para o cálculo desvio padrão.
