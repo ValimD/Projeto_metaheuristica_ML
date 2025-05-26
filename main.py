@@ -16,7 +16,7 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
     elif construtiva == "1":
         solucao = Metodos.aleatorio(problema)
     elif construtiva == "2":
-        solucao = Metodos.gulosa(problema)
+        solucao = Metodos.gulosa_v3(problema)
 
     # Refinando a solução.
     if refinamento == "1":
