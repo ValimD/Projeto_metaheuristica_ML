@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def _phi(alpha, beta):
     """
     Calcula o parâmetro phi para a distribuição de Lévy.
@@ -46,7 +45,7 @@ def change_par(alpha, beta, mu, sigma, par_input, par_output):
         return mu + sigma * _phi(alpha, beta)
 
 
-def random_levy(alpha, beta, mu=0.0, sigma=1.0, shape=(), par=0):
+def random_levy(alpha, beta, mu=0.0, sigma=1.0, shape=(), par=0)->float:
     """
     Gera amostras aleatórias conforme a distribuição de Lévy.
 
@@ -63,7 +62,7 @@ def random_levy(alpha, beta, mu=0.0, sigma=1.0, shape=(), par=0):
         par (int, opcional): Parâmetro para ajuste de parametrização (0 ou 1). Padrão é 0.
 
     Returns:
-        numpy.ndarray or float: Amostra ou conjunto de amostras aleatórias seguindo a distribuição de Lévy.
+        float: Amostra ou conjunto de amostras aleatórias seguindo a distribuição de Lévy.
     """
     loc = change_par(alpha, beta, mu, sigma, par, 0)
     if alpha == 2:
@@ -90,7 +89,7 @@ def random_levy(alpha, beta, mu=0.0, sigma=1.0, shape=(), par=0):
     return loc + sigma * k
 
 
-def get_levy_flight_array(dim=10):
+def get_levy_flight_array():
     """
     Gera um array com passos absolutos de um voo de Lévy.
 
@@ -103,10 +102,6 @@ def get_levy_flight_array(dim=10):
     Returns:
         numpy.ndarray: Array contendo os passos absolutos obtidos a partir da distribuição de Lévy.
     """
-    return np.array([abs(random_levy(1.5, 0)) for _ in range(dim)])
-
-
-if __name__ == "__main__":
-
-    for i in range(100):
-        print(random_levy(1.5, 0))
+    # return np.array([abs(random_levy(1.5, 0)) for _ in range(dim)])
+    # Gera um array de números inteiros
+    return max(1, int(abs(random_levy(1.5, 0))))

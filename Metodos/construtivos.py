@@ -16,6 +16,7 @@ def hibrida(problema: Processa.Problema) -> Metodos.Solucao:
     Returns:
         solucao (Solucao): Dataclass representando a solução construída, incluindo estruturas auxiliares.
     """
+
     sol = Metodos.Solucao(
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),
@@ -68,7 +69,7 @@ def hibrida(problema: Processa.Problema) -> Metodos.Solucao:
 
         # Comparando as soluções, e salvando a atual caso seja melhor.
         copiaSol.objetivo = Metodos.funcao_objetivo(problema, copiaSol.itensP, copiaSol.itensC) / copiaSol.qntCorredores
-        if copiaSol.objetivo > sol.objetivo or copiaSol.qntItens < problema.lb:
+        if copiaSol.objetivo > sol.objetivo or copiaSol.qntItens < problema.lb or copiaSol.qntItens == 0:
             sol = copiaSol
             peso_corredores.pop(corredor)
             tentativas_sem_melhora = 0

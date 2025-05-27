@@ -32,16 +32,13 @@ class Solucao:
             self.tempo
         )
 
-def adiciona_pedidos(problema: Processa.Problema, solucao: Solucao) -> Solucao:
+def adiciona_pedidos(problema: Processa.Problema, solucao: Solucao):
     """
-    Função responsável por adicionar os pedidos viáveis de forma gulosa na solução informada.
+    Função responsável por adicionar os pedidos viáveis de forma gulosa, usando a estratégia da cobertura, na solução informada.
 
     Args:
         problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
         solucao (Solucao): Dataclass representando a solução, incluindo estruturas auxiliares.
-
-    Returns:
-        solucao (Solucao): Dataclass representando a solução com os novos pedidos, incluindo estruturas auxiliares.
     """
 
     # Filtrando os pedidos possíveis para os corredores selecionados.
@@ -74,146 +71,88 @@ def adiciona_pedidos(problema: Processa.Problema, solucao: Solucao) -> Solucao:
                 solucao.universoC[item] -= qnt
                 solucao.itensP[item] += qnt
 
-    return solucao
-
-def adiciona_corredor(problema: Processa.Problema, solucao: Solucao, corredor_max: int) -> Solucao:
+def adiciona_corredor(problema: Processa.Problema, solucao: Solucao, corredor_max: int):
     """
-    Função responsável por adicionar um novo corredor na solução informada.
+    Função responsável por adicionar um novo corredor na solução informada. Não adiciona novos pedidos.
 
     Args:
         problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
         solucao (Solucao): Dataclass representando a solução, incluindo estruturas auxiliares.
         corredor_max (int): Índice do corredor que será inserido.
-
-    Returns:
-        solucao (Solucao): Dataclass representando a solução com o novo corredor, incluindo estruturas auxiliares.
     """
-
-    primeira_vizinhanca = solucao.clone()       # Variáveis da vizinhança baseada na adição de um corredor.
 
     # Adicionando o novo corredor se ele existe.
     if corredor_max >= 0 and corredor_max < problema.a:
-        primeira_vizinhanca.corredores.append(corredor_max)
-        primeira_vizinhanca.corredoresDisp[corredor_max] = 1
-        primeira_vizinhanca.qntCorredores += 1
+        solucao.corredores.append(corredor_max)
+        solucao.corredoresDisp[corredor_max] = 1
+        solucao.qntCorredores += 1
 
         for item, qnt in problema.aisles[corredor_max].items():
-            primeira_vizinhanca.itensC[item] += qnt
-            primeira_vizinhanca.universoC[item] += qnt
+            solucao.itensC[item] += qnt
+            solucao.universoC[item] += qnt
 
-        # Adicionando pedidos se possível.
-        primeira_vizinhanca = adiciona_pedidos(problema, primeira_vizinhanca)
-
-    return primeira_vizinhanca
-
-def troca_corredor(problema: Processa.Problema, solucao: Solucao, corredor_max: int, corredor_min: int) -> Solucao:
+def troca_corredor(problema: Processa.Problema, solucao: Solucao, corredor_max: int, corredor_min: int):
     """
-    Função responsável por trocar dois corredores na solução informada.
+    Função responsável por trocar dois corredores na solução informada. Também remove todos os pedidos da solução para eles serem adicionados novamente pela estratégia da cobertura.
 
     Args:
         problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
         solucao (Solucao): Dataclass representando a solução, incluindo estruturas auxiliares.
         corredor_max (int): Índice do corredor que será inserido.
         corredor_min (int): Índice do corredor que será removido.
-
-    Returns:
-        solucao (Solucao): Dataclass representando a solução com os corredores trocados, incluindo estruturas auxiliares.
     """
-
-    segunda_vizinhanca = solucao.clone()        # Variáveis da vizinhança baseada na troca de corredores.
 
     # Trocando os corredores caso o corredor de peso máximo exista.
     if corredor_max >= 0 and corredor_max < problema.a:
-        segunda_vizinhanca.corredores.remove(corredor_min)
-        segunda_vizinhanca.corredoresDisp[corredor_min] = 0
+        solucao.corredores.remove(corredor_min)
+        solucao.corredoresDisp[corredor_min] = 0
         for item, qnt in problema.aisles[corredor_min].items():
-            segunda_vizinhanca.itensC[item] -= qnt
-            segunda_vizinhanca.universoC[item] -= qnt
+            solucao.itensC[item] -= qnt
 
-        segunda_vizinhanca.corredores.append(corredor_max)
-        segunda_vizinhanca.corredoresDisp[corredor_max] = 1
+        solucao.corredores.append(corredor_max)
+        solucao.corredoresDisp[corredor_max] = 1
         for item, qnt in problema.aisles[corredor_max].items():
-            segunda_vizinhanca.itensC[item] += qnt
-            segunda_vizinhanca.universoC[item] += qnt
+            solucao.itensC[item] += qnt
 
-        # Removendo todos os pedidos inviáveis, sem considerar que a remoção de um anterior possa deixar os próximos viáveis.
-        pedidos_inviaves = []                   # Lista de pedidos inviáveis com os corredores atualmente selecionados.
+        # Redefinindo solução para começar a inserir pedidos do 0.
+        solucao.universoC = solucao.itensC.copy()
+        solucao.pedidos = []
+        solucao.pedidosDisp = [0 for _ in range(problema.o)]
+        solucao.itensP = dict.fromkeys(range(problema.i), 0)
+        solucao.qntItens = 0
 
-        for indice in segunda_vizinhanca.pedidos:
-            for item in problema.orders[indice]:
-                if segunda_vizinhanca.itensP[item] > segunda_vizinhanca.universoC[item]:
-                    pedidos_inviaves.append(indice)
-                    break
-
-        for indice in pedidos_inviaves:
-            segunda_vizinhanca.pedidos.remove(indice)
-            segunda_vizinhanca.pedidosDisp[indice] = 0
-            for item, qnt in problema.orders[indice].items():
-                segunda_vizinhanca.universoC[item] += qnt
-                segunda_vizinhanca.itensP[item] -= qnt
-                segunda_vizinhanca.qntItens -= qnt
-
-        # Adicionando pedidos se possível.
-        segunda_vizinhanca = adiciona_pedidos(problema, segunda_vizinhanca)
-
-    return segunda_vizinhanca
-
-def remove_corredor(problema: Processa.Problema, solucao: Solucao, corredor_min: int) -> Solucao:
+def remove_corredor(problema: Processa.Problema, solucao: Solucao, corredor_min: int):
     """
-    Função responsável por remover um corredor da solução informada.
+    Função responsável por remover um corredor da solução informada. Também remove todos os pedidos da solução para eles serem adicionados novamente pela estratégia da cobertura.
 
     Args:
         problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
         solucao (Solucao): Dataclass representando a solução, incluindo estruturas auxiliares.
         corredor_min (int): Índice do corredor que será removido.
-
-    Returns:
-        solucao (Solucao): Dataclass representando a solução com o corredor removido, incluindo estruturas auxiliares.
     """
 
-    terceira_vizinhanca = solucao.clone()       # Variáveis da vizinhança baseada na remoção de um corredor.
-
     # Removendo o corredor.
-    if terceira_vizinhanca.qntCorredores > 1:
-        terceira_vizinhanca.corredores.remove(corredor_min)
-        terceira_vizinhanca.corredoresDisp[corredor_min] = 0
-        terceira_vizinhanca.qntCorredores -= 1
+    if solucao.qntCorredores > 1:
+        solucao.corredores.remove(corredor_min)
+        solucao.corredoresDisp[corredor_min] = 0
+        solucao.qntCorredores -= 1
         for item, qnt in problema.aisles[corredor_min].items():
-            terceira_vizinhanca.itensC[item] -= qnt
-            terceira_vizinhanca.universoC[item] -= qnt
+            solucao.itensC[item] -= qnt
 
-        # Removendo todos os pedidos inviáveis, sem considerar que a remoção de um anterior possa deixar os próximos viáveis.
-        pedidos_inviaves = []                   # Lista de pedidos inviáveis com os corredores atualmente selecionados.
+        # Redefinindo solução para começar a inserir pedidos do 0.
+        solucao.universoC = solucao.itensC.copy()
+        solucao.pedidos = []
+        solucao.pedidosDisp = [0 for _ in range(problema.o)]
+        solucao.itensP = dict.fromkeys(range(problema.i), 0)
+        solucao.qntItens = 0
 
-        for indice in terceira_vizinhanca.pedidos:
-            for item in problema.orders[indice]:
-                if terceira_vizinhanca.itensP[item] > terceira_vizinhanca.universoC[item]:
-                    pedidos_inviaves.append(indice)
-                    break
-
-        for indice in pedidos_inviaves:
-            terceira_vizinhanca.pedidos.remove(indice)
-            terceira_vizinhanca.pedidosDisp[indice] = 0
-            for item, qnt in problema.orders[indice].items():
-                terceira_vizinhanca.universoC[item] += qnt
-                terceira_vizinhanca.itensP[item] -= qnt
-                terceira_vizinhanca.qntItens -= qnt
-
-        # Adicionando pedidos se possível.
-        terceira_vizinhanca = adiciona_pedidos(problema, terceira_vizinhanca)
-
-    return terceira_vizinhanca
-
-def remove_redundantes(problema: Processa.Problema, solucao: Solucao) -> Solucao:
+def remove_redundantes(problema: Processa.Problema, solucao: Solucao):
     """
     Função responsável por remover os corredores redundantes da solução informada.
 
     Args:
         problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
         solucao (Solucao): Dataclass representando a solução, incluindo estruturas auxiliares.
-
-    Returns:
-        solucao (Solucao): Dataclass representando a solução com os corredores removidos, incluindo estruturas auxiliares.
     """
 
     # Procurando corredores redundantes, sem considerar que a remoção de um anterior possa tornar o atual não redundante.
@@ -251,8 +190,6 @@ def remove_redundantes(problema: Processa.Problema, solucao: Solucao) -> Solucao
                 solucao.universoC[item] -= qnt
                 solucao.itensC[item] -= qnt
 
-    return solucao
-
 def funcao_objetivo(problema: Processa.Problema, itensP: dict, itensC: dict) -> int:
     """
     Função que calcula a quantidade total de itens nos pedidos da solução, e verifica se alguma restrição foi violada.
@@ -279,20 +216,21 @@ def funcao_objetivo(problema: Processa.Problema, itensP: dict, itensC: dict) -> 
     return soma
 
 
-def peso_aresta(problema, corredor_id, pedido_id)->int:
+def peso_aresta(problema: Processa.Problema, corredor_id: int, pedido_id: int) -> int:
     """
     Calcula o peso da aresta entre um corredor e um pedido em um grafo bipartido.
-    O peso corresponde à quantidade de itens faltantes para suprir o pedido com base na oferta disponível
-    no corredor. 
-    Arghs:
-        problema (Processa.Problema): Instância contendo os dados do problema, incluindo as ofertas dos corredores
-                                    e as demandas dos pedidos.
+
+    O peso corresponde à quantidade de itens faltantes para suprir o pedido com base na oferta disponível no corredor.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema, incluindo as ofertas dos corredores e as demandas dos pedidos.
         corredor_id (int): Índice do corredor cuja oferta será considerada.
         pedido_id (int): Índice do pedido cuja demanda será avaliada.
-        int: Quantidade de itens faltantes para suprir o pedido ou 9999 se faltarem mais de 15 unidades.
+
     Returns:
-        int: Peso da aresta entre o corredor e o pedido, representando a quantidade de itens faltantes.
+        faltantes (int): Peso da aresta entre o corredor e o pedido, representando a quantidade de itens faltantes.
     """
+
     oferta = problema.aisles[corredor_id]
     demanda = problema.orders[pedido_id]
     faltantes = 0
@@ -303,23 +241,61 @@ def peso_aresta(problema, corredor_id, pedido_id)->int:
     return faltantes
 
 
-def inicia_grafo(problema)->Dict[int, List[tuple]]:
+def inicia_grafo(problema: Processa.Problema) -> Dict[int, List[tuple]]:
     """
     Inicializa o grafo bipartido que relaciona os corredores aos pedidos.
-    Para cada corredor, a função cria uma lista de arestas para os pedidos, onde cada aresta é representada
-    por uma tupla (pedido, peso). O peso de cada aresta é determinado pela quantidade de itens faltantes para
-    suprir o pedido com a oferta do corredor. A lista de arestas para cada corredor é ordenada em ordem crescente de peso.
+
+    Para cada corredor, a função cria uma lista de arestas para os pedidos, onde cada aresta é representada por uma tupla (pedido, peso). O peso de cada aresta é determinado pela quantidade de itens faltantes para suprir o pedido com a oferta do corredor. A lista de arestas para cada corredor é ordenada em ordem crescente de peso.
+
     Args:
-        problema (Processa.Problema): Instância contendo os dados do problema, incluindo as estruturas 'aisles' (corredores) e 'orders' (pedidos).
+        problema (Problema): Instância contendo os dados do problema, incluindo as estruturas 'aisles' (corredores) e 'orders' (pedidos).
+
     Returns:
-        dict: Um dicionário representando o grafo bipartido, onde a chave é o índice do corredor e o valor é uma lista de tuplas (índice do pedido, peso da aresta).
+        grafo (dict): Um dicionário representando o grafo bipartido, onde a chave é o índice do corredor e o valor é uma lista de tuplas (índice do pedido, peso da aresta).
     """
+
     grafo = defaultdict(list)
     for c_id in range(len(problema.aisles)):
         for p_id in range(len(problema.orders)):
             peso = peso_aresta(problema, c_id, p_id)
             grafo[c_id].append((p_id, peso))
-        
+
         grafo[c_id].sort(key=lambda x: x[1])
 
     return grafo
+
+
+def jaccard_distance(sol1: Solucao, sol2: Solucao) -> float:
+    """
+    Calcula a Distância Jaccard entre as máscaras de corredores de duas instâncias de Solucao.
+
+    Args:
+        sol1 (Solucao): A primeira solução.
+        sol2 (Solucao): A segunda solução.
+
+    Returns:
+        float: A Distância Jaccard entre as duas soluções (0.0 se idênticas, 1.0 se disjuntas).
+    """
+
+    mask1 = sol1.corredores
+    mask2 = sol2.corredores
+
+    if not mask1:  # Trata o caso de máscaras vazias (numero_corredores = 0)
+        return 0.0 if not mask2 else 1.0
+
+    intersect_count = 0
+    union_count = 0
+
+    for i in range(len(mask1)):
+        if not (mask1[i] ^ mask2[i]):
+            intersect_count += 1
+
+        if mask1[i] or mask2[i]:
+            union_count += 1
+
+    if union_count == 0:
+        # Ambas as máscaras são compostas apenas por zeros (nenhum corredor selecionado)
+        return 0.0  # Consideradas idênticas
+
+    jaccard_index = intersect_count / union_count
+    return 1.0 - jaccard_index
