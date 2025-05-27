@@ -26,6 +26,10 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
         # Instancia a classe FPO passando o problema e a solução atual para refinar
         fpo_instance = Metodos.FPO(problema, iterations_number, population_size, plot=False)
         solucao = fpo_instance.run()
+    elif construtiva == "5":
+        solucao = Metodos.gulosa_v3(problema)
+        ALNS = Metodos.ALNS(problema, solucao, 100, 0.995)
+        solucao = ALNS.run(1000)
 
     # Refinando a solução.
     if refinamento == "1":
@@ -47,7 +51,7 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
 if __name__ == "__main__":
     if len(sys.argv) < 6:
         print("Uso correto: python3 main.py <dataset> <nome_arquivo_resultados> <heurística_construtiva_metaheurística> <heurística_refinamento> <semente_aleatoria>")
-        print("Heurísticas construtivas e metaheurísticas: 0 (híbrida), 1 (aleatória), 2 (gulosa), 3 (PSO discreto), 4 (FPO)")
+        print("Heurísticas construtivas e metaheurísticas: 0 (híbrida), 1 (aleatória), 2 (gulosa), 3 (PSO discreto), 4 (FPO), 5 (ALNS)")
         print("Heurísticas de refinamento: 0 (nenhuma), 1 (melhor_vizinhanca), 2 (refinamento_cluster_vns)")
     else:
         try:

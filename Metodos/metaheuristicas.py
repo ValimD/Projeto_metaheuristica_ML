@@ -6,7 +6,7 @@ import statistics
 import math
 from collections import defaultdict
 from itertools import islice
-from random import choice, choices, randint, random, sample
+from random import choice, choices, randint, random, sample, uniform, shuffle
 from time import perf_counter
 
 def calcula_componente(problema: Processa.Problema, componente_atual: set, particula: dict) -> set:
@@ -434,7 +434,7 @@ class ALNS:
         k = max(1, k) if n >= 1 else 0
         k = min(k, n)
 
-        to_remove = random.sample(solucao.corredores, k)
+        to_remove = sample(solucao.corredores, k)
         for c in to_remove:
             solucao = self.remove_corredor(solucao, c)
         return solucao
@@ -543,8 +543,8 @@ class ALNS:
 
             # 3) Escolha aleatória entre os top-k
             k = min(5, len(candidatos))
-            if random.random() < alpha:
-                escolha = random.choice(candidatos[:k])[0]
+            if random() < alpha:
+                escolha = choice(candidatos[:k])[0]
             else:
                 escolha = candidatos[0][0]
 
@@ -557,7 +557,7 @@ class ALNS:
     def construtor_aleatorio(self, solucao):
 
         candidatos = [p for p in range(len(solucao.pedidosDisp)) if solucao.pedidosDisp[p] == 0]
-        random.shuffle(candidatos)
+        shuffle(candidatos)
 
         for pedido in candidatos:
 
@@ -568,7 +568,7 @@ class ALNS:
 
     def seleciona_operador(self, operadores, pesos):
         total = sum(pesos)
-        escolha = random.uniform(0, total)
+        escolha = uniform(0, total)
         acumulado = 0
         for i, w in enumerate(pesos):
             acumulado += w
@@ -582,7 +582,7 @@ class ALNS:
     def aceita_solucao(self, obj_atual, obj_novo):
         if obj_novo >= obj_atual:
             return True
-        return random.random() < math.exp((obj_novo - obj_atual) / self.temp)
+        return random() < math.exp((obj_novo - obj_atual) / self.temp)
 
     def e_viavel(self, solucao):
         return self.problema.lb <= solucao.qntItens <= self.problema.ub
@@ -694,6 +694,6 @@ class ALNS:
 
             self.temp *= self.taxa_resf
 
-        self.sol_melhor.tempo = perf_counter() - tempo_inicio
+        self.sol_melhor.tempo += perf_counter() - tempo_inicio
 
         return self.sol_melhor
