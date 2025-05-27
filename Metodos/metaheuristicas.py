@@ -52,7 +52,7 @@ def pso_discreto(problema: Processa.Problema) -> Metodos.Solucao:
     """
 
     inicio = perf_counter()
-
+    
     # Preparando ambiente.
     tamanho_enxame = 20                             # Quantidade de partículas geradas para o enxame.
     parcela_enxame = tamanho_enxame * 50 / 100      # Quantidade de partículas geradas aleatórias e quantidade gerada de forma híbrida (híbrida é a menor parte).
@@ -215,9 +215,16 @@ class FPO:
             else:
                 iterations_without_improve += 1
 
-            if iterations_without_improve == 250:
-                break
+            if iterations_without_improve > 0 and iterations_without_improve % 50 == 0:
+                if self.p > 1:
+                    self.p -= 0.1
+                    print(f'p setado para {self.p} na iteração {i}/{self.iterations_num}')
+                if iterations_without_improve > 250:
+                    print(f'{iterations_without_improve} iterations without improve')
+                    break
 
+
+            
             self.pollination()
             if self.plot:
                 avg.append(np.mean(self.objetivo))
@@ -239,9 +246,10 @@ class FPO:
 
     def initialize_population(self):
         # Utiliza a função construtiva híbrida para gerar a população inicial de soluções
-        top10 = (int)(self.pop_size/10)
-        top90 = self.pop_size - top10
-        self.population = [Metodos.hibrida(self.problema) for _ in range(top10)] + [Metodos.aleatorio(self.problema) for _ in range(top90)]
+        # top10 = (int)(self.pop_size/10)
+        # top90 = self.pop_size - top10
+        # self.population = [Metodos.hibrida(self.problema) for _ in range(top10)] + [Metodos.aleatorio(self.problema) for _ in range(top90)]
+        self.population = [Metodos.hibrida(self.problema) for _ in range(self.pop_size)]
         for i in range(self.pop_size):
             self.objetivo[i] = self.population[i].objetivo
 
@@ -277,8 +285,6 @@ class FPO:
                     if nova_sol.objetivo > self.objetivo[i]:
                         self.population[i] = nova_sol
                         self.objetivo[i] = nova_sol.objetivo
-                        if self.objetivo[i] > self.best.objetivo:
-                            self.best = self.population[i]
                 else:
                     nova_sol.objetivo = 0
 
