@@ -2,7 +2,7 @@ import Metodos
 import Processa
 import random
 import sys
-from Metodos.metaheuristicas import FPO
+
 def main(dataset, arquivo, construtiva, refinamento, semente):
     # Definindo a semente.
     random.seed(semente)
@@ -17,19 +17,22 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
         solucao = Metodos.aleatorio(problema)
     elif construtiva == "2":
         solucao = Metodos.gulosa(problema)
+    elif construtiva == "3":
+        solucao = Metodos.pso_discreto(problema)
+    elif construtiva == "4":
+        iterations_number = 1000
+        population_size = int(problema.o / 200) + 50
+        # p = 0.5
+        # Instancia a classe FPO passando o problema e a solução atual para refinar
+        fpo_instance = Metodos.FPO(problema, iterations_number, population_size, plot=False)
+        solucao = fpo_instance.run()
 
     # Refinando a solução.
     if refinamento == "1":
         solucao = Metodos.melhor_vizinhanca(problema, solucao)
     elif refinamento == "2":
         solucao = Metodos.refinamento_cluster_vns(problema, solucao)
-    elif refinamento == "3":
-        iterations_number = 1000
-        population_size = int(problema.o / 200) + 50
-        # p = 0.5
-        # Instancia a classe FPO passando o problema e a solução atual para refinar
-        fpo_instance = FPO(problema, iterations_number, population_size, plot=False)
-        solucao = fpo_instance.run()
+
     # Salvando resultados.
     problema.result["orders"] = solucao.pedidos
     problema.result["aisles"] = solucao.corredores
@@ -37,15 +40,14 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
     problema.result["time"] = solucao.tempo
 
     # Imprimindo e salvando no arquivo.
-    # problema.imprimeResultados()
+    problema.imprimeResultados()
     problema.salvaResultado()
-
 
 # Verificando argumentos e chamando a main.
 if __name__ == "__main__":
     if len(sys.argv) < 6:
-        print("Uso correto: python3 main.py <dataset> <nome_arquivo_resultados> <heurística_construtiva> <heurística_refinamento> <semente_aleatoria>")
-        print("Heurísticas construtivas: 0 (híbrida), 1 (aleatória), 2 (gulosa)")
+        print("Uso correto: python3 main.py <dataset> <nome_arquivo_resultados> <heurística_construtiva_metaheurística> <heurística_refinamento> <semente_aleatoria>")
+        print("Heurísticas construtivas e metaheurísticas: 0 (híbrida), 1 (aleatória), 2 (gulosa), 3 (PSO discreto), 4 (FPO)")
         print("Heurísticas de refinamento: 0 (nenhuma), 1 (melhor_vizinhanca), 2 (refinamento_cluster_vns)")
     else:
         try:
