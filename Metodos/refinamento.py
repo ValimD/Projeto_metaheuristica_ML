@@ -269,7 +269,7 @@ def melhor_vizinhanca(problema: Processa.Problema, solucao: Metodos.Solucao) -> 
     inicio = perf_counter()
 
     # Removendo os corredores redundantes da solução inicial.
-    solucao = Metodos.remove_redundantes(problema, solucao)
+    Metodos.remove_redundantes(problema, solucao)
     solucao.objetivo = Metodos.funcao_objetivo(problema, solucao.itensP, solucao.itensC) / solucao.qntCorredores
 
     # Calculando a demanda de cada item.
@@ -299,13 +299,19 @@ def melhor_vizinhanca(problema: Processa.Problema, solucao: Metodos.Solucao) -> 
                 corredor_min = indice
 
         # Explorando a vizinhança por meio da adição do novo corredor.
-        primeira_vizinhanca = Metodos.adiciona_corredor(problema, solucao, corredor_max)
+        primeira_vizinhanca = solucao.clone()
+        Metodos.adiciona_corredor(problema, primeira_vizinhanca, corredor_max)
+        Metodos.adiciona_pedidos(problema, primeira_vizinhanca)
 
         # Explorando a vizinhança por meio da troca de corredores, trocando o de menor peso selecionado com o de maior peso não selecionado.
-        segunda_vizinhanca = Metodos.troca_corredor(problema, solucao, corredor_max, corredor_min)
+        segunda_vizinhanca = solucao.clone()
+        Metodos.troca_corredor(problema, segunda_vizinhanca, corredor_max, corredor_min)
+        Metodos.adiciona_pedidos(problema, segunda_vizinhanca)
 
         # Explorando a vizinhança por meio da remoção do corredor de menor peso.
-        terceira_vizinhanca = Metodos.remove_corredor(problema, solucao, corredor_min)
+        terceira_vizinhanca = solucao.clone()
+        Metodos.remove_corredor(problema, terceira_vizinhanca, corredor_min)
+        Metodos.adiciona_pedidos(problema, terceira_vizinhanca)
 
         # Comparando as soluções, e salvando a atual caso seja melhor.
         primeira_vizinhanca.objetivo = Metodos.funcao_objetivo(problema, primeira_vizinhanca.itensP, primeira_vizinhanca.itensC) / primeira_vizinhanca.qntCorredores

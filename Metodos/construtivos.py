@@ -16,6 +16,7 @@ def hibrida(problema: Processa.Problema) -> Metodos.Solucao:
     Returns:
         solucao (Solucao): Dataclass representando a solução construída, incluindo estruturas auxiliares.
     """
+
     sol = Metodos.Solucao(
         dict.fromkeys(range(problema.i), 0),
         dict.fromkeys(range(problema.i), 0),

@@ -3,7 +3,6 @@ import Metodos
 import numpy as np
 import Processa
 import statistics
-from .levy import get_levy_flight_array
 from itertools import islice
 from random import choice, choices, randint, random, sample
 from time import perf_counter
@@ -38,25 +37,6 @@ def calcula_componente(problema: Processa.Problema, componente_atual: set, parti
         componente.add(problema.a)
 
     return componente
-
-def remove_corredor_temp(problema: Processa.Problema, solucao: Metodos.Solucao, corredor: int):
-    # Removendo o corredor da solução.
-    solucao.corredores.remove(corredor)
-    solucao.qntCorredores -= 1
-    solucao.corredoresDisp[corredor] = 0.
-    for item, qnt in problema.aisles[corredor].items():
-        solucao.itensC[item] -= qnt
-
-def adiciona_pedidos_temp(problema: Processa.Problema, solucao: Metodos.Solucao):
-    # Redefinindo solução para começar a inserir pedidos do 0.
-    solucao.universoC = solucao.itensC.copy()
-    solucao.pedidos = []
-    solucao.pedidosDisp = [0 for _ in range(problema.o)]
-    solucao.itensP = dict.fromkeys(range(problema.i), 0)
-    solucao.qntItens = 0
-
-    # Adicionando os pedidos por cobertura máxima.
-    Metodos.adiciona_pedidos(problema, solucao)
 
 def pso_discreto(problema: Processa.Problema) -> Metodos.Solucao:
     """
@@ -152,20 +132,21 @@ def pso_discreto(problema: Processa.Problema) -> Metodos.Solucao:
             for corredor in enxame[i]["Vt_1"]:
                 if corredor < 0:
                     # Removendo corredor.
-                    remove_corredor_temp(problema, enxame[i]["solucao"], corredor * -1)
+                    Metodos.remove_corredor(problema, enxame[i]["solucao"], corredor * -1)
                 elif corredor == problema.a:
                     # Removendo corredor 0.
-                    remove_corredor_temp(problema, enxame[i]["solucao"], 0)
+                    Metodos.remove_corredor(problema, enxame[i]["solucao"], 0)
                 else:
                     # Adicionando corredor.
-                    enxame[i]["solucao"].corredores.append(corredor)
-                    enxame[i]["solucao"].qntCorredores += 1
-                    enxame[i]["solucao"].corredoresDisp[corredor] = 1
-                    for item, qnt in problema.aisles[corredor].items():
-                        enxame[i]["solucao"].itensC[item] += qnt
+                    Metodos.adiciona_corredor(problema, enxame[i]["solucao"], corredor)
 
             # Adicionando novos pedidos usando cobertura.
-            adiciona_pedidos_temp(problema, enxame[i]["solucao"])
+            enxame[i]["solucao"].universoC = enxame[i]["solucao"].itensC.copy()
+            enxame[i]["solucao"].pedidos = []
+            enxame[i]["solucao"].pedidosDisp = [0 for _ in range(problema.o)]
+            enxame[i]["solucao"].itensP = dict.fromkeys(range(problema.i), 0)
+            enxame[i]["solucao"].qntItens = 0
+            Metodos.adiciona_pedidos(problema, enxame[i]["solucao"])
 
             # Atualizando universo.
             enxame[i]["Xt"] = set(enxame[i]["solucao"].corredores)
@@ -195,9 +176,10 @@ class FPO:
     def __init__(self, problema: Processa.Problema, iterations_num, pop_size, p=0.4, plot=True):
         """
         Construtor do FPO modificado.
-        Agora utiliza a função construtiva híbrida para inicializar a população e
-        operadores de refinamento para gerar vizinhos, manipulando corretamente o conjunto de dados.
+
+        Agora utiliza a função construtiva híbrida para inicializar a população e operadores de refinamento para gerar vizinhos, manipulando corretamente o conjunto de dados.
         """
+
         self.problema = problema
         self.iterations_num = iterations_num
         self.pop_size = pop_size
@@ -213,7 +195,7 @@ class FPO:
         if self.problema.ub < 500:
             self.p = 0.0
 
-    def run(self)->Metodos.Solucao:
+    def run(self) -> Metodos.Solucao:
         self.initialize_population()
         # self.calcular_matriz_distancias_populacao(self)
         self.calculate_obj()
@@ -279,7 +261,7 @@ class FPO:
             self.best = self.population[best_idx]
 
 
-    def pollination(self)->None:
+    def pollination(self) -> None:
         for i in range(self.pop_size):
             # Com probabilidade p, aplica refinamento global; caso contrário, utiliza refinamento local
             if random() < self.p:
@@ -299,14 +281,15 @@ class FPO:
                     nova_sol.objetivo = 0
 
 
-    def local_pollination_multisol(self, i)->Metodos.Solucao:
+    def local_pollination_multisol(self, i) -> Metodos.Solucao:
         """
         Args:
-            self
             i: identificador da população
-        Return:
+
+        Returns:
             solucao (Solucao): Dataclass representando a solução montada, incluindo estruturas auxiliares.
         """
+
         # Escolher 1 indivíduo aleatório
         sol1 = self.population[i]
         # Encontrar sol2 de acordo com a distância
@@ -325,38 +308,42 @@ class FPO:
         c2 = choice(sol2.corredores)
         # Remover c1 e Adicionar c2
         nova_sol.corredores.remove(c1).append(c2)
-        nova_sol = Metodos.remove_corredor(self.problema, nova_sol, c2)
-        nova_sol = Metodos.adiciona_corredor(self.problema, nova_sol, c1)
+        Metodos.remove_corredor(self.problema, nova_sol, c2)
+        Metodos.adiciona_corredor(self.problema, nova_sol, c1)
+        Metodos.adiciona_pedidos(self.problema, nova_sol)
         # Avaliar nova solução
         nova_sol.objetivo = Metodos.funcao_objetivo(self.problema, nova_sol.itensP, nova_sol.itensC)
         self.objetivo[i] = nova_sol.objetivo
         return nova_sol
 
 
-    def local_pollination(self, i)->Metodos.Solucao:
+    def local_pollination(self, i) -> Metodos.Solucao:
         """
         Args:
-            self
             i: identificador da população
-        Return:
+
+        Returns:
             solucao (Solucao): Dataclass representando a solução montada, incluindo estruturas auxiliares.
         """
+
         populacao = self.population[i]
         nova_sol = populacao.clone()
         tam = self.problema.a - 1
         escolhido = choice(range(tam))
 
         if nova_sol.corredoresDisp[escolhido] == 0:
-            nova_sol = Metodos.adiciona_corredor(self.problema, nova_sol, escolhido)
+            Metodos.adiciona_corredor(self.problema, nova_sol, escolhido)
         else:
-            nova_sol = Metodos.remove_corredor(self.problema, nova_sol, escolhido)
+            Metodos.remove_corredor(self.problema, nova_sol, escolhido)
+
+        Metodos.adiciona_pedidos(self.problema, nova_sol)
 
         return nova_sol
 
 
-    def global_pollination(self, i)->Metodos.Solucao:
+    def global_pollination(self, i) -> Metodos.Solucao:
         # Define o número de mudanças/ Força do polinizador
-        num_levy = get_levy_flight_array()
+        num_levy = Metodos.get_levy_flight_array()
         diferencas = {}
         copia_sol = self.population[i].clone()
         tam = self.problema.a-1
@@ -371,22 +358,22 @@ class FPO:
             # 70% de chance de aplicar a mudança
             if random() < 0.7:
                 if copia_sol.corredoresDisp[escolhidos[j]] == 0:
-                    copia_sol = Metodos.adiciona_corredor(self.problema, copia_sol, escolhidos[j])
+                    Metodos.adiciona_corredor(self.problema, copia_sol, escolhidos[j])
                 else:
-                    copia_sol = Metodos.remove_corredor(self.problema, copia_sol, escolhidos[j])
+                    Metodos.remove_corredor(self.problema, copia_sol, escolhidos[j])
+
+                Metodos.adiciona_pedidos(self.problema, copia_sol)
+
         return copia_sol
 
 
     def calcular_matriz_distancias_populacao(self) -> None:
         """
-        Calcula e armazena as distâncias de Jaccard de cada indivíduo para todos os outros,
-        ordenadas por proximidade.
+        Calcula e armazena as distâncias de Jaccard de cada indivíduo para todos os outros, ordenadas por proximidade.
 
-        A estrutura resultante é armazenada em `self.distancias_ordenadas` (novo nome sugerido
-        para o atributo para refletir a estrutura) e é um dicionário onde:
+        A estrutura resultante é armazenada em `self.distancias_ordenadas` (novo nome sugerido para o atributo para refletir a estrutura) e é um dicionário onde:
             - A chave é o índice de um indivíduo.
-            - O valor é uma lista de tuplas `(distância, índice_do_vizinho)`,
-            ordenada pela distância em ordem crescente.
+            - O valor é uma lista de tuplas `(distância, índice_do_vizinho)`, ordenada pela distância em ordem crescente.
         """
 
         # Etapa 1: Calcular todas as distâncias Jaccard únicas e armazenar temporariamente.
