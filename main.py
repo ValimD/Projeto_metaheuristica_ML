@@ -16,7 +16,7 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
     elif construtiva == "1":
         solucao = Metodos.aleatorio(problema)
     elif construtiva == "2":
-        solucao = Metodos.gulosa_v3(problema)
+        solucao = Metodos.gulosa(problema)
     elif construtiva == "3":
         solucao = Metodos.pso_discreto(problema)
     elif construtiva == "4":
@@ -27,7 +27,7 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
         fpo_instance = Metodos.FPO(problema, iterations_number, population_size, plot=False)
         solucao = fpo_instance.run()
     elif construtiva == "5":
-        solucao = Metodos.gulosa_v3(problema)
+        solucao = Metodos.gulosa(problema)
         ALNS = Metodos.ALNS(problema, solucao, 100, 0.995)
         solucao = ALNS.run(1000)
 

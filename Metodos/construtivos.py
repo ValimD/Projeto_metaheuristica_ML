@@ -176,12 +176,21 @@ def aleatorio(problema: Processa.Problema) -> Metodos.Solucao:
     solucao.tempo = perf_counter() - solucao.tempo
     return solucao
 
-def gulosa_v3(problema: Processa.Problema) -> Metodos.Solucao:
+def gulosa(problema: Processa.Problema) -> Metodos.Solucao:
     """
-    Heurística construtiva gulosa para o problema de seleção de corredores e pedidos.
-    Ranqueia pedidos e corredores e seleciona iterativamente o corredor com maior peso,
-    preenchendo-o com pedidos que caibam em sua capacidade até atingir o limite UB,
-    parando quando não houver mais espaço para itens.
+    Heurística construtiva gulosa e iterativa com estratégia first fit para o problema de seleção de corredores e pedidos.
+
+    Ranqueia os pedidos com base na concentração de itens dos corredores e ranqueia os corredores com base na concentração de itens dos pedidos,
+
+    escolhe-se o primeiro corredor e preenche-o com os pedidos viáveis em ordem de ranqueamento, após isso o processo se repete, escolhe-se o próximo corredor e o meso é preenchido de forma gulosa,
+
+    se o corredor novo melhorar o valor de objetivo da função, ele é adicionado à solução, se não, o processo se repete novamente, até um total de 3 vezes sem melhoria na função objetivo ou até UB ser atingido.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+
+    Returns:
+        solucao (Solucao): Dataclass representando a solução construída, incluindo estruturas auxiliares.
     """
     # Inicializa solução
     solucao = Metodos.Solucao(
