@@ -6,7 +6,7 @@ import statistics
 import math
 from collections import defaultdict
 from itertools import islice
-from random import choice, randint, random, sample, uniform, shuffle
+from random import choice, randint, random, sample, uniform, shuffle, choices
 from time import perf_counter
 
 def calcula_componente(problema: Processa.Problema, componente_atual: set, particula: dict) -> set:
@@ -412,7 +412,7 @@ class FPO:
             self.distancias = vizinhancas_ordenadas
 
 class ALNS:
-    def __init__(self, problema, solucao, temperatura_inicial=100, taxa_resfriamento=0.995):
+    def __init__(self, problema, solucao, temperatura_inicial, taxa_resfriamento):
         self.problema           = problema
         self.sol_atual          = solucao
         self.sol_melhor         = solucao.clone()
@@ -423,7 +423,7 @@ class ALNS:
         self.temp               = temperatura_inicial
         self.taxa_resf          = taxa_resfriamento
 
-    def destruidor_aleatorio(self, solucao, frac=0.1):
+    def destruidor_aleatorio(self, solucao, frac = 0.25):
         n = len(solucao.corredores)
         # se não houver corredores, nada a fazer
         if n == 0:
@@ -436,12 +436,13 @@ class ALNS:
         k = min(k, n)
 
         to_remove = sample(solucao.corredores, k)
-        for c in to_remove:
-            solucao = self.remove_corredor(solucao, c)
+        for corredor in to_remove:
+            Metodos.remove_corredor(self.problema, solucao, corredor)
+
         return solucao
 
     # Se existirem itens no UniversoC, ranqueia os corredores selecionados que mais possuem eles, e removem os 10% piores corredores.
-    def destruidor_bx_prod(self, solucao, porcent = 0.1):
+    def destruidor_bx_prod(self, solucao, porcent = 0.25):
         k = max(1, int(porcent * len(solucao.corredores)))
 
         if not solucao.universoC or sum(solucao.universoC.values()) == 0:
@@ -456,113 +457,192 @@ class ALNS:
         piores = sorted(notas, key=notas.get)[:k]
 
         for corredor in piores:
-            solucao = self.remove_corredor(solucao, corredor)
+            Metodos.remove_corredor(self.problema, solucao, corredor)
 
         return solucao
 
     def construtor_guloso(self, solucao):
         problema = self.problema
+        pedidos_ranqueados, corredores_ranqueados = Metodos.ranqueamento_guloso(self.problema, solucao)
+        tentativas_sem_melhora = 0
 
-        while True:
-            # 1) calcula peso ponderado de cada item segundo corredores atuais
-            conc = defaultdict(lambda: {"total":0, "contagem":0})
-            for c in solucao.corredores:
-                for item, q in problema.aisles[c].items():
-                    conc[item]["total"]   += q
-                    conc[item]["contagem"]+= 1
+        while tentativas_sem_melhora < 3 and corredores_ranqueados:
+           
+            # Selecionando o corredor de maior nota
+            copiaSolucao = solucao.clone()
+            corredor = corredores_ranqueados.pop()
 
-            peso_item = {
-                it: (v["total"]/v["contagem"] if v["contagem"] else 0)
-                for it,v in conc.items()
-            }
+            # Atualizando universo dos corredores
+            if copiaSolucao.corredoresDisp[corredor] == 0:
+                copiaSolucao.corredores.append(corredor)
+                copiaSolucao.corredoresDisp[corredor] = 1
+                copiaSolucao.qntCorredores += 1
 
-            # 2) filtra candidatos viáveis e calcula score
-            candidatos = []
-            for p in range(problema.o):
-                if solucao.pedidosDisp[p]:
-                    continue
-                # verifica se cabe no universoC por item e no ub
-                total_p = sum(problema.orders[p].values())
-                if solucao.qntItens + total_p > problema.ub:
-                    continue
-                cabe = all(
-                    solucao.universoC.get(it,0) >= qt
-                    for it,qt in problema.orders[p].items()
-                )
-                if not cabe:
-                    continue
-                # score = soma(qt * peso_item[it])
-                score = sum(peso_item.get(it,0) * qt
-                            for it,qt in problema.orders[p].items())
-                candidatos.append((p, score))
+                # Atualizando itens dos corredores selecionados
+                for item, qnt in problema.aisles[corredor].items():
+                    copiaSolucao.itensC[item] += qnt
+                    copiaSolucao.universoC[item] += qnt
+            
+            else:
+                continue
 
-            if not candidatos:
-                break
+            # Adicionando pedidos
+            pedidos_viaveis = []                        # Lista de pedidos viáveis com os corredores atualmente selecionados.
+            for indice in pedidos_ranqueados:
+                if not copiaSolucao.pedidosDisp[indice]:
+                    valida = True
+                    itens_totais = 0
+                    for item, qnt in problema.orders[indice].items():
+                        itens_totais += qnt
+                        if qnt > copiaSolucao.universoC[item]:
+                            valida = False
+                            break
+                    if valida:
+                        pedidos_viaveis.append([indice, itens_totais])
 
-            # 3) ordena decrescente e tenta inserir em ordem
-            candidatos.sort(key=lambda x: x[1], reverse=True)
-            added = False
-            for p,_ in candidatos:
-                if self.adiciona_pedido(solucao, p):
-                    added = True
-                # opcional: break após inserir um
-            if not added:
-                break
+            for pedido in pedidos_viaveis:
+                valida = True
+                for item, qnt in problema.orders[pedido[0]].items():
+                    if qnt > copiaSolucao.universoC[item]:
+                        valida = False
+                        break
+                if valida and copiaSolucao.qntItens + pedido[1] <= problema.ub:
+                    copiaSolucao.qntItens += pedido[1]
+                    copiaSolucao.pedidosDisp[pedido[0]] = 1
+                    copiaSolucao.pedidos.append(pedido[0])
+                    for item, qnt in problema.orders[pedido[0]].items():
+                        copiaSolucao.universoC[item] -= qnt
+                        copiaSolucao.itensP[item] += qnt
+
+            # Comparando as soluções, e salvando a atual caso seja melhor
+            copiaSolucao.objetivo = Metodos.funcao_objetivo(problema, copiaSolucao.itensP, copiaSolucao.itensC) / copiaSolucao.qntCorredores
+            if copiaSolucao.objetivo > solucao.objetivo or copiaSolucao.qntItens < problema.lb:
+                solucao = copiaSolucao
+                tentativas_sem_melhora = 0
+            else:
+                tentativas_sem_melhora += 1
+
+            pedidos_ranqueados, corredores_ranqueados = Metodos.ranqueamento_guloso(self.problema, solucao)
 
         return solucao
 
-
-
     def construtor_hibrido(self, solucao, alpha = 0.3):
-        problema = self.problema
+        # Calculando a demanda de cada item.
+        demanda_por_item = defaultdict(int)             # Dicionário da soma total da demanda de cada item em todos os pedidos.
+        for pedido in self.problema.orders:
+            for item, qtd in pedido.items():
+                demanda_por_item[item] += qtd
 
-        while True:
-            # 1) Seleciona candidatos viáveis (não inseridos e cabem no universo)
-            candidatos = []
-            for p in range(problema.o):
-                if solucao.pedidosDisp[p] == 0:
-                    total_itens = sum(problema.orders[p].values())
-                    # cabe no universoC?
-                    if total_itens + solucao.qntItens <= problema.ub and all(
-                        solucao.universoC.get(item, 0) >= qtd
-                        for item, qtd in problema.orders[p].items()
-                    ):
-                        # quantos corredores novos seriam necessários?
-                        novos_corr = [
-                            c for c in self._get_corridors_for_order(p)
-                            if solucao.corredoresDisp[c] == 0
-                        ]
-                        delta_corr = len(novos_corr) or 1
-                        score = total_itens / delta_corr
-                        candidatos.append((p, score, total_itens))
+        # Calculando o peso de cada corredor com base na demanda e na quantidade ofertada.
+        # Peso de cada corredor é calculado com base na demanda dos itens e na quantidade que ele oferece.
+        peso_corredores = {indice: sum(demanda_por_item[item] * qnt for item, qnt in self.problema.aisles[indice].items()) for indice in range(self.problema.a)}
 
-            if not candidatos:
-                break
+        # Buscando a melhor solução até ficar 3 iterações seguidas sem encontrar uma melhor.
+        tentativas_sem_melhora = 0
+        while tentativas_sem_melhora < 3 and peso_corredores:
+            copiaSol = solucao.clone()
 
-            # 2) Ordena por score decrescente
-            candidatos.sort(key=lambda x: x[1], reverse=True)
-
-            # 3) Escolha aleatória entre os top-k
-            k = min(5, len(candidatos))
-            if random() < alpha:
-                escolha = choice(candidatos[:k])[0]
+            # Selecionando um corredor ainda não utilizado.
+            # Se todos os pesos forem zero, escolhe aleatoriamente. Caso contrário, utiliza seleção ponderada proporcional ao peso.
+            total = sum(peso_corredores.values())
+            if total == 0:
+                corredor = choice(list(peso_corredores.keys()))
             else:
-                escolha = candidatos[0][0]
+                escolhas, prob = zip(*[(indice, peso / total) for indice, peso in peso_corredores.items()])
+                corredor = choices(escolhas, weights=prob, k=1)[0]
 
-            # 4) Tenta inserir; se falhar, encerra
-            if not self.adiciona_pedido(solucao, escolha):
-                break
+            # Atualizando universo dos corredores.
+            if copiaSol.corredoresDisp[corredor] == 0:
+                copiaSol.corredores.append(corredor)
+                copiaSol.corredoresDisp[corredor] = 1
+                copiaSol.qntCorredores += 1
+
+                for item, qnt in self.problema.aisles[corredor].items():
+                    copiaSol.itensC[item] += qnt
+                    copiaSol.universoC[item] += qnt
+
+            else:
+                peso_corredores.pop(corredor)
+                continue
+
+            # Adicionando pedidos se possível.
+            Metodos.adiciona_pedidos(self.problema, copiaSol)
+
+            # Comparando as soluções, e salvando a atual caso seja melhor.
+            copiaSol.objetivo = Metodos.funcao_objetivo(self.problema, copiaSol.itensP, copiaSol.itensC) / copiaSol.qntCorredores
+            if copiaSol.objetivo > solucao.objetivo or copiaSol.qntItens < self.problema.lb or copiaSol.qntItens == 0:
+                solucao = copiaSol
+                peso_corredores.pop(corredor)
+                tentativas_sem_melhora = 0
+            else:
+                tentativas_sem_melhora += 1
 
         return solucao
 
     def construtor_aleatorio(self, solucao):
+        corredores_selecionados = list(range(self.problema.a))       # Lista dos corredores embaralhados.
+        shuffle(corredores_selecionados)
 
-        candidatos = [p for p in range(len(solucao.pedidosDisp)) if solucao.pedidosDisp[p] == 0]
-        shuffle(candidatos)
+            # Percorrendo os corredores.
+        for corredor in corredores_selecionados:
+            nova_solucao = solucao.clone()
 
-        for pedido in candidatos:
+            if nova_solucao.corredoresDisp[corredor] == 0:
+                # Atualizando universo dos corredores.
+                nova_solucao.corredores.append(corredor)
+                nova_solucao.corredoresDisp[corredor] = 1
+                nova_solucao.qntCorredores += 1
 
-            if not self.adiciona_pedido(solucao, pedido):
+                for item, qnt in self.problema.aisles[corredor].items():
+                    nova_solucao.itensC[item] += qnt
+                    nova_solucao.universoC[item] += qnt
+            else:
+                continue
+
+            # Verificando os pedidos disponíveis.
+            pedidos_sorteados = []                              # Lista dos pedidos possíveis aleatórios.
+            quantidade = 0                                      # Quantidade de pedidos possíveis.
+            for indice in range(self.problema.o):
+                if not nova_solucao.pedidosDisp[indice]:
+                    valida = True
+                    for item, qnt in self.problema.orders[indice].items():
+                        if qnt > nova_solucao.universoC[item]:
+                            valida = False
+                            break
+                    if valida:
+                        pedidos_sorteados.append(indice)
+                        quantidade += 1
+
+            # Adicionando os pedidos.
+            if quantidade:
+                if quantidade != 1:
+                    shuffle(pedidos_sorteados)
+
+                # Define quantos pedidos tentar adicionar.
+                limite_pedidos = randint(1, quantidade) if nova_solucao.qntItens > self.problema.lb else quantidade
+
+                for indice in pedidos_sorteados[:limite_pedidos]:
+                    if not nova_solucao.pedidosDisp[indice]:
+                        valida = True
+                        soma = 0
+                        for item, qnt in self.problema.orders[indice].items():
+                            soma += qnt
+                            if qnt > nova_solucao.universoC[item]:
+                                valida = False
+                                break
+                        if valida and nova_solucao.qntItens + soma <= self.problema.ub:
+                            nova_solucao.qntItens += soma
+                            nova_solucao.pedidosDisp[indice] = 1
+                            nova_solucao.pedidos.append(indice)
+                            for item, qnt in self.problema.orders[indice].items():
+                                nova_solucao.universoC[item] -= qnt
+                                nova_solucao.itensP[item] += qnt
+
+            # Verificando a nova solução.
+            nova_solucao.objetivo = Metodos.funcao_objetivo(self.problema, nova_solucao.itensP, nova_solucao.itensC) / nova_solucao.qntCorredores
+            if nova_solucao.objetivo > solucao.objetivo or nova_solucao.qntItens < self.problema.lb or nova_solucao.qntItens == 0:
+                solucao = nova_solucao
+            else:
                 break
 
         return solucao
@@ -584,100 +664,16 @@ class ALNS:
         if obj_novo >= obj_atual:
             return True
         return random() < math.exp((obj_novo - obj_atual) / self.temp)
-
-    def e_viavel(self, solucao):
-        return self.problema.lb <= solucao.qntItens <= self.problema.ub
-
-    def adiciona_pedido(self, solucao, pedido):
-
-        if solucao.pedidosDisp[pedido] == 1:
-            return False
-
-        nova_qntItens = solucao.qntItens + sum(self.problema.orders[pedido].values())
-
-        if nova_qntItens > self.problema.ub:
-            return False
-
-        solucao.pedidosDisp[pedido] = 1
-        solucao.pedidos.append(pedido)
-        solucao.qntItens = nova_qntItens
-
-        for item, qnt in self.problema.orders[pedido].items():
-            solucao.universoC[item] -= qnt
-            solucao.itensP[item] += qnt
-
-        solucao.objetivo = solucao.qntItens / solucao.qntCorredores if solucao.qntCorredores > 0 else 0
-        return True
-
-    def remove_pedido(self, solucao, pedido):
-        if solucao.pedidosDisp[pedido] == 0:
-            return False
-        solucao.pedidosDisp[pedido] = 0
-        solucao.pedidos.remove(pedido)
-
-        for item, qnt in self.problema.orders[pedido].items():
-            solucao.universoC[item] += qnt
-            solucao.itensP[item] -= qnt
-            solucao.qntItens -= qnt
-
-        solucao.objetivo = Metodos.funcao_objetivo(self.problema, solucao.itensP, solucao.itensC) / solucao.qntCorredores
-
-        return True
-
-    def remove_corredor(self, solucao, corredor):
-        solucao.corredores.remove(corredor)
-        solucao.corredoresDisp[corredor] = 0
-        solucao.qntCorredores -= 1
-        for item, qnt in self.problema.aisles[corredor].items():
-            solucao.itensC[item] -= qnt
-            solucao.universoC[item] -= qnt
-
-        pedidos_inviaveis = []
-        for indice in solucao.pedidos:
-            for item, _ in self.problema.orders[indice].items():
-                if qnt > solucao.universoC[item]:
-                    pedidos_inviaveis.append(indice)
-                    break
-
-        for indice in pedidos_inviaveis:
-            solucao.pedidos.remove(indice)
-            solucao.pedidosDisp[indice] = 0
-            for item, qnt in self.problema.orders[indice].items():
-                solucao.universoC[item] += qnt
-                solucao.itensP[item] -= qnt
-                solucao.qntItens -= qnt
-
-        solucao.objetivo = solucao.qntItens/solucao.qntCorredores if solucao.qntCorredores != 0 else 0
-        return solucao
-
-    def _get_corridors_for_order(self, pedido_idx):
-        """
-        Retorna a lista de índices de corredores que contêm
-        pelo menos um dos itens requisitados pelo pedido.
-        """
-        corredores = []
-        pedido = self.problema.orders[pedido_idx]
-        for c, aisle in enumerate(self.problema.aisles):
-            # se este corredor tem algum item do pedido, inclui-o
-            for item in pedido:
-                if aisle.get(item, 0) > 0:
-                    corredores.append(c)
-                    break
-        return corredores
-
-
+    
     def run(self, iteracoes):
         tempo_inicio = perf_counter()
-        for _ in range(iteracoes):
+        for i in range(iteracoes):  
             i_des, des = self.seleciona_operador(self.destruidores, self.peso_dest)
             i_rec, rec = self.seleciona_operador(self.reconstrutores, self.peso_reco)
 
             candidata = self.sol_atual.clone()
             candidata = des(candidata)
             candidata = rec(candidata)
-
-            if not self.e_viavel(candidata):
-                continue
 
             obj_atual = self.sol_atual.objetivo
             obj_novo = candidata.objetivo
@@ -686,7 +682,6 @@ class ALNS:
 
                 self.sol_atual = candidata
                 recompensa = 1 + max(0, obj_novo - obj_atual)
-
                 self.atualiza_pesos(i_des, self.peso_dest, recompensa)
                 self.atualiza_pesos(i_rec, self.peso_reco, recompensa)
 

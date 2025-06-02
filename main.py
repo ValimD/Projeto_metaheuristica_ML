@@ -28,7 +28,7 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
         solucao = fpo_instance.run()
     elif construtiva == "5":
         solucao = Metodos.gulosa(problema)
-        ALNS = Metodos.ALNS(problema, solucao, 100, 0.995)
+        ALNS = Metodos.ALNS(problema, solucao, 10, 0.999)
         solucao = ALNS.run(1000)
 
     # Refinando a solução.
