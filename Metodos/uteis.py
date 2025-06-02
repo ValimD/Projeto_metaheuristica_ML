@@ -299,3 +299,32 @@ def jaccard_distance(sol1: Solucao, sol2: Solucao) -> float:
 
     jaccard_index = intersect_count / union_count
     return 1.0 - jaccard_index
+
+def ranqueamento_guloso(problema: Processa.Problema, solucao: Solucao) -> (List[int], List[int]):
+
+    corredores_disponiveis = [idx for idx, disp in enumerate(solucao.corredoresDisp) if disp == 0]
+    pedidos_disponiveis   = [idx for idx, disp in enumerate(solucao.pedidosDisp)   if disp == 0]
+
+    concentracao_corredores = defaultdict(lambda: {"total": 0, "contagem": 0})
+    concentracao_pedidos = defaultdict(lambda: {"total": 0, "contagem": 0})
+
+    for indice in corredores_disponiveis:
+        for item, qtd in problema.aisles[indice].items():
+            concentracao_corredores[item]["total"]   += qtd
+            concentracao_corredores[item]["contagem"] += 1
+
+    for indice in pedidos_disponiveis:
+        for item, qtd in problema.orders[indice].items():
+            concentracao_pedidos[item]["total"]   += qtd
+            concentracao_pedidos[item]["contagem"] += 1
+
+    peso_ponderado_pedidos = {}
+    peso_ponderado_corredores = {}
+    peso_ponderado_pedidos = {item: (concentracao_corredores[item]["total"] / concentracao_corredores[item]["contagem"] if concentracao_corredores[item]["contagem"] != 0 else 0) for item in range (problema.i)}
+    peso_ponderado_corredores = {item: (concentracao_pedidos[item]["total"] / concentracao_pedidos[item]["contagem"] if concentracao_pedidos[item]["contagem"] != 0 else 0) for item in range (problema.i)}
+
+    # Ranqueamento
+    pedidos_rankeados = sorted(pedidos_disponiveis, key = lambda idx: sum(peso_ponderado_pedidos[item] * qtd for item, qtd in problema.orders[idx].items()), reverse = False)
+    corredores_rankeados = sorted(corredores_disponiveis, key = lambda idx: sum(peso_ponderado_corredores[item] * qtd for item, qtd in problema.aisles[idx].items()), reverse = False)
+
+    return pedidos_rankeados, corredores_rankeados

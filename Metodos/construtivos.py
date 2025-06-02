@@ -207,54 +207,31 @@ def gulosa(problema: Processa.Problema) -> Metodos.Solucao:
         perf_counter()  # tempo inicial
     )
 
-    # Cálculo de concentração e pesos ponderados
-    concentracao_pedidos = defaultdict(lambda: {"total": 0, "contagem": 0})
-    for pedido in problema.orders:
-        for item, qtd in pedido.items():
-            concentracao_pedidos[item]["total"] += qtd
-            concentracao_pedidos[item]["contagem"] += 1
-
-    concentracao_corredores = defaultdict(lambda: {"total": 0, "contagem": 0})
-    for corredor in problema.aisles:
-        for item, qtd in corredor.items():
-            concentracao_corredores[item]["total"] += qtd
-            concentracao_corredores[item]["contagem"] += 1
-
-    peso_ponderado_pedidos = {}
-    peso_ponderado_corredores = {}
-    peso_ponderado_pedidos = {item: (concentracao_corredores[item]["total"] / concentracao_corredores[item]["contagem"] if concentracao_corredores[item]["contagem"] != 0 else 0) for item in range (problema.i)}
-    peso_ponderado_corredores = {item: (concentracao_pedidos[item]["total"] / concentracao_pedidos[item]["contagem"] if concentracao_pedidos[item]["contagem"] != 0 else 0) for item in range (problema.i)}
-
-    # Funções para ranqueamento
-    def peso_pedido(idx):
-        return sum(peso_ponderado_pedidos[item] * qtd for item, qtd in problema.orders[idx].items())
-
-    def peso_corredor(idx):
-        return sum(peso_ponderado_corredores[item] * qtd for item, qtd in problema.aisles[idx].items())
-
-    pedidos_rankeados = sorted(range(problema.o), key=peso_pedido, reverse=False)
-    corredores_rankeados = sorted(range(problema.a), key=peso_corredor, reverse=False)
-
     # Buscando a melhor solução até ficar 3 iterações seguidas sem encontrar uma melhor.
     tentativas_sem_melhora = 0
-    while tentativas_sem_melhora < 3 and corredores_rankeados:
+
+    # Ranqueando pedidos e corredores.
+    pedidos_ranqueados, corredores_ranqueados = Metodos.ranqueamento_guloso(problema, solucao)
+
+    while tentativas_sem_melhora < 3 and corredores_ranqueados:
 
         # Selecionando o corredor de maior nota
         copiaSolucao = solucao.clone()
-        corredor = corredores_rankeados.pop()
+        corredor = corredores_ranqueados.pop()
 
         # Atualizando universo dos corredores
         copiaSolucao.corredores.append(corredor)
         copiaSolucao.corredoresDisp[corredor] = 1
         copiaSolucao.qntCorredores += 1
 
+        # Atualizando itens dos corredores selecionados
         for item, qnt in problema.aisles[corredor].items():
             copiaSolucao.itensC[item] += qnt
             copiaSolucao.universoC[item] += qnt
 
         # Adicionando pedidos
         pedidos_viaveis = []                        # Lista de pedidos viáveis com os corredores atualmente selecionados.
-        for indice in pedidos_rankeados:
+        for indice in pedidos_ranqueados:
             if not copiaSolucao.pedidosDisp[indice]:
                 valida = True
                 itens_totais = 0
@@ -287,6 +264,9 @@ def gulosa(problema: Processa.Problema) -> Metodos.Solucao:
             tentativas_sem_melhora = 0
         else:
             tentativas_sem_melhora += 1
+        
+        # Ranqueando pedidos e corredores novamente.
+        pedidos_ranqueados, corredores_ranqueados = Metodos.ranqueamento_guloso(problema, solucao)
 
     solucao.tempo = perf_counter() - solucao.tempo
 
