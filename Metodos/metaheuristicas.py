@@ -6,7 +6,7 @@ import statistics
 import math
 from collections import defaultdict
 from itertools import islice
-from random import choice, choices, randint, random, sample, uniform, shuffle
+from random import choice, randint, random, sample, uniform, shuffle
 from time import perf_counter
 
 def calcula_componente(problema: Processa.Problema, componente_atual: set, particula: dict) -> set:
@@ -40,7 +40,7 @@ def calcula_componente(problema: Processa.Problema, componente_atual: set, parti
 
     return componente
 
-def pso_discreto(problema: Processa.Problema) -> Metodos.Solucao:
+def PSO(problema: Processa.Problema) -> Metodos.Solucao:
     """
     Metaheurística PSO adaptada para os casos discretos desse problema.
 
@@ -52,7 +52,7 @@ def pso_discreto(problema: Processa.Problema) -> Metodos.Solucao:
     """
 
     inicio = perf_counter()
-    
+
     # Preparando ambiente.
     tamanho_enxame = 20                             # Quantidade de partículas geradas para o enxame.
     parcela_enxame = tamanho_enxame * 50 / 100      # Quantidade de partículas geradas aleatórias e quantidade gerada de forma híbrida (híbrida é a menor parte).
@@ -78,15 +78,12 @@ def pso_discreto(problema: Processa.Problema) -> Metodos.Solucao:
             solucao = enxame[i]["solucao"].clone()
             posicao_global = set(particula.corredores)
 
-    print(f"Melhor solução da geração inicial: {solucao.objetivo}")
-
     # Iniciando iterações.
     desvio = statistics.stdev(objetivos)            # Desvio padrão inicial.
     geracao_maxima = 2000                           # Geração máxima do enxame.
     geracao_atual = 0                               # Geração atual do enxame.
     ponto_convergencia = 3 * geracao_maxima / 4     # Ponto de alteração na inércia.
     while geracao_atual < geracao_maxima and desvio > 0.001:
-        print(desvio, solucao.objetivo)
         # Verificando inércia.
         if geracao_atual > ponto_convergencia:
             inercia = 0
@@ -170,8 +167,6 @@ def pso_discreto(problema: Processa.Problema) -> Metodos.Solucao:
     fim = perf_counter()
     solucao.tempo = fim - inicio
 
-    print(f"Melhor solução da geração {geracao_atual}: {solucao.objetivo}")
-    print(f"Desvio padrão: {desvio}, tempo: {solucao.tempo}")
     return solucao
 
 class FPO:
@@ -224,7 +219,7 @@ class FPO:
                     break
 
 
-            
+
             self.pollination()
             if self.plot:
                 avg.append(np.mean(self.objetivo))
@@ -451,12 +446,12 @@ class ALNS:
 
         if not solucao.universoC or sum(solucao.universoC.values()) == 0:
             return solucao
-        
+
         notas = {}
         # Cálculo das notas
         for corredor in solucao.corredores:
             notas[corredor] = sum(self.problema.aisles[corredor].get(item, 0) * solucao.universoC[item] for item in solucao.universoC)
-        
+
         # Ranqueamento e seleção dos piores
         piores = sorted(notas, key=notas.get)[:k]
 
@@ -484,7 +479,7 @@ class ALNS:
             # 2) filtra candidatos viáveis e calcula score
             candidatos = []
             for p in range(problema.o):
-                if solucao.pedidosDisp[p]: 
+                if solucao.pedidosDisp[p]:
                     continue
                 # verifica se cabe no universoC por item e no ub
                 total_p = sum(problema.orders[p].values())
@@ -515,8 +510,8 @@ class ALNS:
                 break
 
         return solucao
-    
-    
+
+
 
     def construtor_hibrido(self, solucao, alpha = 0.3):
         problema = self.problema
@@ -559,7 +554,7 @@ class ALNS:
                 break
 
         return solucao
-    
+
     def construtor_aleatorio(self, solucao):
 
         candidatos = [p for p in range(len(solucao.pedidosDisp)) if solucao.pedidosDisp[p] == 0]
@@ -581,7 +576,7 @@ class ALNS:
             if escolha <= acumulado:
                 return i, operadores[i]
         return len(operadores)-1, operadores[-1]
-    
+
     def atualiza_pesos(self, indice, pesos, recompensa, rho=0.1):
         pesos[indice] = (1 - rho) * pesos[indice] + rho * recompensa
 
@@ -597,12 +592,12 @@ class ALNS:
 
         if solucao.pedidosDisp[pedido] == 1:
             return False
-        
+
         nova_qntItens = solucao.qntItens + sum(self.problema.orders[pedido].values())
-        
+
         if nova_qntItens > self.problema.ub:
             return False
-        
+
         solucao.pedidosDisp[pedido] = 1
         solucao.pedidos.append(pedido)
         solucao.qntItens = nova_qntItens
@@ -669,7 +664,7 @@ class ALNS:
                     corredores.append(c)
                     break
         return corredores
-    
+
 
     def run(self, iteracoes):
         tempo_inicio = perf_counter()

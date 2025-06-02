@@ -18,7 +18,7 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
     elif construtiva == "2":
         solucao = Metodos.gulosa(problema)
     elif construtiva == "3":
-        solucao = Metodos.pso_discreto(problema)
+        solucao = Metodos.PSO(problema)
     elif construtiva == "4":
         iterations_number = 1000
         population_size = int(problema.o / 200) + 50
@@ -51,7 +51,7 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
 if __name__ == "__main__":
     if len(sys.argv) < 6:
         print("Uso correto: python3 main.py <dataset> <nome_arquivo_resultados> <heurística_construtiva_metaheurística> <heurística_refinamento> <semente_aleatoria>")
-        print("Heurísticas construtivas e metaheurísticas: 0 (híbrida), 1 (aleatória), 2 (gulosa), 3 (PSO discreto), 4 (FPO), 5 (ALNS)")
+        print("Heurísticas construtivas e metaheurísticas: 0 (híbrida), 1 (aleatória), 2 (gulosa), 3 (PSO), 4 (FPO), 5 (ALNS)")
         print("Heurísticas de refinamento: 0 (nenhuma), 1 (melhor_vizinhanca), 2 (refinamento_cluster_vns)")
     else:
         try:
