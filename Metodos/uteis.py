@@ -300,7 +300,17 @@ def jaccard_distance(sol1: Solucao, sol2: Solucao) -> float:
     jaccard_index = intersect_count / union_count
     return 1.0 - jaccard_index
 
-def ranqueamento_guloso(problema: Processa.Problema, solucao: Solucao) -> (List[int], List[int]):
+def ranqueamento_guloso(problema: Processa.Problema, solucao: Solucao) -> tuple[List[int], List[int]]:
+    """
+    Ranqueia dinamicamente os pedidos e corredores que ainda não foram selecionados na solução, com base em uma concentração cruzada dos itens.
+
+    Args:
+        problema (Processa.Problema): Instância contendo os dados do problema, incluindo as estruturas 'aisles' (corredores) e 'orders' (pedidos).
+        solucao (Solucao): Dataclass representando o estado atual da solução, incluindo estruturas auxiliares.
+
+    Returns:
+        Tuple[List[int], List[int]]: lista contendo os índices dos pedidos ranqueados em ordem descrescente, lista contendo os índices dos corredores ranqueados em ordem descrescente, respectivamente.
+    """
 
     corredores_disponiveis = [idx for idx, disp in enumerate(solucao.corredoresDisp) if disp == 0]
     pedidos_disponiveis   = [idx for idx, disp in enumerate(solucao.pedidosDisp)   if disp == 0]
