@@ -20,13 +20,7 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
     elif construtiva == "3":
         solucao = Metodos.PSO(problema)
     elif construtiva == "4":
-        iterations_number = 1000
-
-        population_size = int(problema.o / 200) + 50
-        
-        # p = 0.5
-        # Instancia a classe FPA passando o problema e a solução atual para refinar
-        FPA_instance = Metodos.FPA(problema, iterations_number, population_size, plot=False)
+        FPA_instance = Metodos.FPA(problema)
         solucao = FPA_instance.run()
     elif construtiva == "5":
         solucao = Metodos.gulosa(problema)

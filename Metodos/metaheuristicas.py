@@ -169,23 +169,23 @@ def PSO(problema: Processa.Problema) -> Metodos.Solucao:
 
     return solucao
 
-class FPO:
-    def __init__(self, problema: Processa.Problema, iterations_num, pop_size, p=0.4, plot=True):
+
+class FPA:
+    def __init__(self, problema: Processa.Problema):
         """
-        Construtor do FPO modificado.
+        Construtor do FPA modificado.
 
         Agora utiliza a função construtiva híbrida para inicializar a população e operadores de refinamento para gerar vizinhos, manipulando corretamente o conjunto de dados.
         """
 
         self.problema = problema
-        self.iterations_num = iterations_num
-        self.pop_size = pop_size
+        self.iterations_num = 800
+        self.pop_size = int(problema.o / 200) + 50
         self.population = None  # lista de objetos Solucao
         self.best = None        # melhor solução encontrada
-        self.p = p              # probabilidade de aplicar refinamento global
-        self.objetivo = np.zeros(pop_size)
-        self.plot = plot
-        # self.distancias = {}
+        self.p = 0.5            # probabilidade de aplicar refinamento global
+        self.objetivo = np.zeros(self.pop_size)
+        self.plot = False
 
         # Para datasets menores, p = 0 garante mais velocidade e qualidade.
         # Para datasets maiores, valores de p menores garantem melhor qualidade mas perdem em tempo de execução
@@ -219,7 +219,6 @@ class FPO:
                     break
 
 
-
             self.pollination()
             if self.plot:
                 avg.append(np.mean(self.objetivo))
@@ -241,10 +240,10 @@ class FPO:
 
     def initialize_population(self):
         # Utiliza a função construtiva híbrida para gerar a população inicial de soluções
-        # top10 = (int)(self.pop_size/10)
-        # top90 = self.pop_size - top10
-        # self.population = [Metodos.hibrida(self.problema) for _ in range(top10)] + [Metodos.aleatorio(self.problema) for _ in range(top90)]
-        self.population = [Metodos.hibrida(self.problema) for _ in range(self.pop_size)]
+        top10 = (int)(self.pop_size/10)
+        top90 = self.pop_size - top10
+        self.population = [Metodos.gulosa(self.problema) for _ in range(top10)] + [Metodos.aleatorio(self.problema) for _ in range(top90)]
+        # self.population = [Metodos.hibrida(self.problema) for _ in range(self.pop_size)]
         for i in range(self.pop_size):
             self.objetivo[i] = self.population[i].objetivo
 
@@ -282,42 +281,6 @@ class FPO:
                         self.objetivo[i] = nova_sol.objetivo
                 else:
                     nova_sol.objetivo = 0
-
-
-    def local_pollination_multisol(self, i) -> Metodos.Solucao:
-        """
-        Args:
-            i: identificador da população
-
-        Returns:
-            solucao (Solucao): Dataclass representando a solução montada, incluindo estruturas auxiliares.
-        """
-
-        # Escolher 1 indivíduo aleatório
-        sol1 = self.population[i]
-        # Encontrar sol2 de acordo com a distância
-        sol2 = self
-        nova_sol = sol1.clone()
-        # Identificar corredores de sol1 que não estão em sol2
-        # TESTAR XOR NO LUGAR
-        diferencas = {}
-        for i in range(sol1.numCorredores):
-            diferencas[i] = sol1.corredores[i] ^ sol2.corredores[i]
-        if not diferencas:
-            return Metodos.aleatorio(self.problema)
-        # Sortear um índice dos corredores diferentes do indivíduo 1 (c1)
-        c1 = choice(diferencas)
-        # Sortear um índice dos corredores do indivíduo 2 (c2)
-        c2 = choice(sol2.corredores)
-        # Remover c1 e Adicionar c2
-        nova_sol.corredores.remove(c1).append(c2)
-        Metodos.remove_corredor(self.problema, nova_sol, c2)
-        Metodos.adiciona_corredor(self.problema, nova_sol, c1)
-        Metodos.adiciona_pedidos(self.problema, nova_sol)
-        # Avaliar nova solução
-        nova_sol.objetivo = Metodos.funcao_objetivo(self.problema, nova_sol.itensP, nova_sol.itensC)
-        self.objetivo[i] = nova_sol.objetivo
-        return nova_sol
 
 
     def local_pollination(self, i) -> Metodos.Solucao:
@@ -369,47 +332,6 @@ class FPO:
 
         return copia_sol
 
-
-    def calcular_matriz_distancias_populacao(self) -> None:
-        """
-        Calcula e armazena as distâncias de Jaccard de cada indivíduo para todos os outros, ordenadas por proximidade.
-
-        A estrutura resultante é armazenada em `self.distancias_ordenadas` (novo nome sugerido para o atributo para refletir a estrutura) e é um dicionário onde:
-            - A chave é o índice de um indivíduo.
-            - O valor é uma lista de tuplas `(distância, índice_do_vizinho)`, ordenada pela distância em ordem crescente.
-        """
-
-        # Etapa 1: Calcular todas as distâncias Jaccard únicas e armazenar temporariamente.
-        # Usaremos uma matriz temporária para eficiência no cálculo, evitando redundância.
-        # distancia_jaccard(pop[i], pop[j]) é simétrica.
-        # Matriz temporária para armazenar as distâncias brutas (i, j)
-        dist_matrix_temp = [[0.0] * self.pop_size for _ in range(self.pop_size)]
-
-        for i in range(self.pop_size):
-            for j in range(i + 1, self.pop_size):  # Calcula apenas para j > i
-                # Note que 'self.population[i]' deve ser do tipo Solucao
-                # que é list[list[int]] conforme definido em uteis.py
-                sol_i = self.population[i]
-                sol_j = self.population[j]
-
-                dist = Metodos.distancia_jaccard(sol_i, sol_j)
-                dist_matrix_temp[i][j] = dist
-                dist_matrix_temp[j][i] = dist  # A distância é simétrica
-
-        # Etapa 2: Construir o dicionário de listas de vizinhos ordenadas.
-        vizinhancas_ordenadas = {}
-        for i in range(self.pop_size):
-            distancias_para_i = []
-            for j in range(self.pop_size):
-                if i == j:
-                    continue  # Não incluir um indivíduo em sua própria lista de vizinhos
-
-                distancias_para_i.append((dist_matrix_temp[i][j], j))
-
-            # Ordenar a lista de vizinhos para o indivíduo 'i' pela distância (o primeiro elemento da tupla)
-            distancias_para_i.sort(key=lambda x: x[0])
-            vizinhancas_ordenadas[i] = distancias_para_i
-            self.distancias = vizinhancas_ordenadas
 
 class ALNS:
     def __init__(self, problema, solucao, temperatura_inicial, taxa_resfriamento):
