@@ -9,6 +9,118 @@ from itertools import islice
 from random import choice, randint, random, sample, uniform, shuffle, choices
 from time import perf_counter
 
+def inicializa_particula(problema: Processa.Problema, quantidade_corredores: int, corredores: list) -> Metodos.Solucao:
+    """
+    Função responsável por inicializar uma partícula inicial com corredores aleatórios.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        quantidade_corredores (int): Quantidade de corredores na partícula.
+        corredores (list): Lista com todos os índices de corredores (utilizada para seleção aleatória dos corredores).
+
+    Returns:
+        particula (Solucao): Partícula inicializada.
+    """
+
+    # Gerando partícula apenas com os corredores.
+    particula = Metodos.Solucao(
+        dict.fromkeys(range(problema.i), 0),
+        dict.fromkeys(range(problema.i), 0),
+        dict.fromkeys(range(problema.i), 0),
+        sample(corredores, quantidade_corredores),
+        [0 for _ in range(problema.a)],
+        [],
+        [0 for _ in range(problema.o)],
+        0,
+        quantidade_corredores,
+        0.0,
+        0.0
+    )
+
+    # Atualizando universo de corredores.
+    for c in particula.corredores:
+        particula.corredoresDisp[c] = 1
+        for item, qnt in problema.aisles[c].items():
+            particula.itensC[item] += qnt
+            particula.universoC[item] += qnt
+
+    # Adicionando os pedidos e calculando a função objetivo.
+    Metodos.adiciona_pedidos(problema, particula)
+    particula.objetivo = Metodos.funcao_objetivo(problema, particula.itensP, particula.itensC) / particula.qntCorredores
+
+    return particula
+
+def gera_populacao_incial(problema: Processa.Problema, total: int, percentuais: list, enxame: list, objetivos: list) -> Metodos.Solucao:
+    """
+    Função responsável por gerar o enxame de partículas do PSO.
+
+    Args:
+        problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        total (int): Quantidade total de partículas no enxame.
+        percentuais (list): Lista contendo dois elementos, entre 0 e 1. O primeiro indica a porcentagem do enxame inicial que será gerado totalmente aleatório, sem limite de quantidade, e o segundo indica a porcentagem que será gerado por meio da heurística construtiva híbrida (1 será pela heurística construtiva gulosa). O restante para dar 1, será gerado de forma aleatória mas com limite de quantidade.
+        enxame (list): Lista que irá salvar cada partícula.
+        objetivos (list): Lista que irá salvar o valor da função objetivo de cada partícula.
+
+    Returns:
+        melhor_particula (Solucao): Clone da melhor partícula do enxame.
+    """
+
+    corredores = [c for c in range(problema.a)]
+
+    # Calculando a quantidade de partículas para cada percentual. Pelo menos uma partícula de cada será gerada.
+    aleatoria_ilimitada = math.floor(percentuais[0] * total)
+    if not aleatoria_ilimitada:
+        aleatoria_ilimitada = 1
+
+    construtiva = math.floor(percentuais[1] * total)
+    if not construtiva:
+        construtiva = 1
+
+    aleatoria_limitada = total - (aleatoria_ilimitada + construtiva)
+
+    # Gerando um indivíduo de forma gulosa.
+    particula = Metodos.gulosa(problema)
+
+    objetivos.append(particula.objetivo)
+    enxame.append({"solucao": particula, "Xt": set(particula.corredores), "P": set(particula.corredores), "Op": particula.objetivo, "Vt_1": set(particula.corredores), "Vt": set(particula.corredores)})
+    melhor_particula = particula.clone()
+
+    # Gerando população híbrida.
+    for i in range(1, construtiva):
+        particula = Metodos.hibrida(problema)
+
+        objetivos.append(particula.objetivo)
+        enxame.append({"solucao": particula, "Xt": set(particula.corredores), "P": set(particula.corredores), "Op": particula.objetivo, "Vt_1": set(particula.corredores), "Vt": set(particula.corredores)})
+        if enxame[i]["solucao"].objetivo > melhor_particula.objetivo:
+            melhor_particula = enxame[i]["solucao"].clone()
+
+    # Gerando população aleatória ilimitada.
+    for i in range(construtiva, construtiva + aleatoria_ilimitada):
+        quantidade = randint(1, problema.a)
+
+        particula = inicializa_particula(problema, quantidade, corredores)
+
+        objetivos.append(particula.objetivo)
+        enxame.append({"solucao": particula, "Xt": set(particula.corredores), "P": set(particula.corredores), "Op": particula.objetivo, "Vt_1": set(particula.corredores), "Vt": set(particula.corredores)})
+        if enxame[i]["solucao"].objetivo > melhor_particula.objetivo:
+            melhor_particula = enxame[i]["solucao"].clone()
+
+    # Gerando população aleatória limitada.
+    qnt_min = 1
+    qnt_max = math.floor(problema.a * 0.3)
+
+    for i in range(construtiva + aleatoria_ilimitada, construtiva + aleatoria_ilimitada + aleatoria_limitada):
+        quantidade = min(qnt_max, qnt_min + int(math.log(1 - random()) / math.log(1 - 0.85) * (qnt_max - qnt_min)))
+
+        particula = inicializa_particula(problema, quantidade, corredores)
+
+        objetivos.append(particula.objetivo)
+        enxame.append({"solucao": particula, "Xt": set(particula.corredores), "P": set(particula.corredores), "Op": particula.objetivo, "Vt_1": set(particula.corredores), "Vt": set(particula.corredores)})
+        if enxame[i]["solucao"].objetivo > melhor_particula.objetivo:
+            melhor_particula = enxame[i]["solucao"].clone()
+
+    return melhor_particula
+
 def calcula_componente(problema: Processa.Problema, componente_atual: set, particula: dict) -> set:
     """
     Função responsável por montar o conjunto contendo os índices dos corredores que serão adicionados e/ou removidos, usando como base o conjunto informado.
@@ -40,52 +152,52 @@ def calcula_componente(problema: Processa.Problema, componente_atual: set, parti
 
     return componente
 
-def PSO(problema: Processa.Problema) -> Metodos.Solucao:
+def PSO(problema: Processa.Problema, tamanho_enxame: int, constante_cognitivo: int, constante_social: int, inercia: int, geracao_maxima: int) -> Metodos.Solucao:
     """
-    Metaheurística PSO adaptada para os casos discretos desse problema.
+    Metaheurística PSO adaptada para o problema discreto de wave picking.
+
+    Cada partícula do enxame representa uma solução (válida ou não), encapsulada pela classe Solucao. A cada iteração, calcula-se a nova velocidade de cada partícula e, em seguida, realiza-se seu movimento. Como o problema é discreto, a abordagem é baseada em operações de conjunto.
+
+    Cada partícula é interpretada como um conjunto de corredores presentes em uma wave. A velocidade define quais corredores devem ser adicionados ou removidos do conjunto atual.
+
+    Os componentes cognitivo e social determinam, respectivamente, o número de elementos extraídos (de forma aleatória) da diferença entre a solução atual e as melhores soluções conhecidas (local e global). As constantes desses componentes servem como limites superiores para intervalos aleatórios.
+
+    O peso de inércia define quantos corredores da velocidade anterior (isto é, corredores que não foram considerados anteriormente por causa da aleatoriedade) serão reaproveitados na nova velocidade.
+
+    Após o movimento, a alocação de pedidos é realizada de forma gulosa sobre o novo conjunto de corredores.
 
     Args:
         problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
+        tamanho_enxame (int): Quantidade de partículas geradas para o enxame.
+        constante_cognitivo (int): Componente cognitivo do PSO (c1).
+        constante_social (int): Componente social do PSO (c2).
+        inercia (int): Peso da inércia (w).
+        geracao_maxima (int): Número máximo de iterações que serão realizadas caso não ocorra a convergência.
 
     Returns:
-        solucao (Solucao): Dataclass representando a melhor solução da população, incluindo estruturas auxiliares.
+        melhor_particula (Solucao): Dataclass representando a melhor solução da população, incluindo estruturas auxiliares.
     """
 
     inicio = perf_counter()
 
-    # Preparando ambiente.
-    tamanho_enxame = 20                             # Quantidade de partículas geradas para o enxame.
-    parcela_enxame = tamanho_enxame * 50 / 100      # Quantidade de partículas geradas aleatórias e quantidade gerada de forma híbrida (híbrida é a menor parte).
-    solucao = None                                  # Melhor solução encontrada.
-    posicao_global = None                           # Conjunto de corredores da melhor solução.
-
-    constante_cognitivo = 2                         # Componente cognitivo do PSO (c1).
-    constante_social = 2                            # Componente social do PSO (c2).
-    inercia = 1                                     # Peso da inércia (w).
-
     # Gerando soluções iniciais.
-    objetivos = []                                  # Lista com todas as funções objetivos do enxame atual, para o cálculo desvio padrão.
-    enxame = []                                     # Lista armazenando todas as partículas do enxame (dicionários).
-    for i in range(tamanho_enxame):
-        if i > parcela_enxame:
-            particula = Metodos.hibrida(problema)
-        else:
-            particula = Metodos.aleatorio(problema)
+    objetivos = []                                              # Lista com todas as funções objetivos do enxame atual, para o cálculo desvio padrão.
+    enxame = []                                                 # Lista armazenando todas as partículas do enxame (dicionários).
 
-        objetivos.append(particula.objetivo)
-        enxame.append({"solucao": particula, "Xt": set(particula.corredores), "P": set(particula.corredores), "Op": particula.objetivo, "Vt_1": set(particula.corredores), "Vt": set(particula.corredores)})
-        if solucao == None or enxame[i]["solucao"].objetivo > solucao.objetivo:
-            solucao = enxame[i]["solucao"].clone()
-            posicao_global = set(particula.corredores)
+    melhor_particula = gera_populacao_incial(problema, tamanho_enxame, [0.1, 0.3], enxame, objetivos)
+    melhor_posicao = set(melhor_particula.corredores)
 
     # Iniciando iterações.
-    desvio = statistics.stdev(objetivos)            # Desvio padrão inicial.
-    geracao_maxima = 2000                           # Geração máxima do enxame.
-    geracao_atual = 0                               # Geração atual do enxame.
-    ponto_convergencia = 3 * geracao_maxima / 4     # Ponto de alteração na inércia.
+    desvio = statistics.stdev(objetivos)                        # Desvio padrão inicial.
+
+    geracao_atual = 0                                           # Geração atual do enxame.
+    geracoes_sem_melhora = 0                                    # Quantidade de iterações seguida sem melhora na solução global.
+    geracao_convergencia = math.floor(geracao_maxima * 0.25)    # Número de gerações sem melhora necessárias para reduzir a inércia.
     while geracao_atual < geracao_maxima and desvio > 0.001:
+        melhora = False                                         # Indica se houve melhora na solução global.
+
         # Verificando inércia.
-        if geracao_atual > ponto_convergencia:
+        if geracoes_sem_melhora == geracao_convergencia:
             inercia = 0
 
         # Calculando as velocidades.
@@ -102,7 +214,7 @@ def PSO(problema: Processa.Problema) -> Metodos.Solucao:
             componente_cognitivo = set(islice(componente_cognitivo, randint(0, constante_cognitivo)))
 
             # Calculando o valor social. No PSO original é calculado por (c2 * [0, 1] * (G + Xi_t)), enquanto aqui é calculado pegando [0, c2] corredores da melhor posição do enxame.
-            componente_social = calcula_componente(problema, posicao_global, enxame[i])
+            componente_social = calcula_componente(problema, melhor_posicao, enxame[i])
             componente_social = componente_social - (componente_inercia | componente_cognitivo)
             enxame[i]["Vt"] = enxame[i]["Vt"] | componente_social
 
@@ -155,20 +267,26 @@ def PSO(problema: Processa.Problema) -> Metodos.Solucao:
                 enxame[i]["Op"] = enxame[i]["solucao"].objetivo
                 enxame[i]["P"] = set(enxame[i]["Xt"])
 
-            if enxame[i]["solucao"].objetivo > solucao.objetivo:
-                solucao = enxame[i]["solucao"].clone()
-                posicao_global = set(enxame[i]["Xt"])
+            if enxame[i]["solucao"].objetivo > melhor_particula.objetivo:
+                melhor_particula = enxame[i]["solucao"].clone()
+                melhor_posicao = set(enxame[i]["Xt"])
+
+                inercia = 1
+                melhora = True
+                geracoes_sem_melhora = 0
 
             objetivos[i] = enxame[i]["solucao"].objetivo
 
         desvio = statistics.stdev(objetivos)
         geracao_atual += 1
 
+        if melhora == False:
+            geracoes_sem_melhora += 1
+
     fim = perf_counter()
-    solucao.tempo = fim - inicio
+    melhor_particula.tempo = fim - inicio
 
-    return solucao
-
+    return melhor_particula
 
 class FPA:
     def __init__(self, problema: Processa.Problema):
@@ -389,7 +507,7 @@ class ALNS:
         tentativas_sem_melhora = 0
 
         while tentativas_sem_melhora < 3 and corredores_ranqueados:
-           
+
             # Selecionando o corredor de maior nota
             copiaSolucao = solucao.clone()
             corredor = corredores_ranqueados.pop()
@@ -404,7 +522,7 @@ class ALNS:
                 for item, qnt in problema.aisles[corredor].items():
                     copiaSolucao.itensC[item] += qnt
                     copiaSolucao.universoC[item] += qnt
-            
+
             else:
                 continue
 
@@ -586,10 +704,10 @@ class ALNS:
         if obj_novo >= obj_atual:
             return True
         return random() < math.exp((obj_novo - obj_atual) / self.temp)
-    
+
     def run(self, iteracoes):
         tempo_inicio = perf_counter()
-        for i in range(iteracoes):  
+        for i in range(iteracoes):
             i_des, des = self.seleciona_operador(self.destruidores, self.peso_dest)
             i_rec, rec = self.seleciona_operador(self.reconstrutores, self.peso_reco)
 

@@ -18,7 +18,7 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
     elif construtiva == "2":
         solucao = Metodos.gulosa(problema)
     elif construtiva == "3":
-        solucao = Metodos.PSO(problema)
+        solucao = Metodos.PSO(problema, 30, 2, 2, 1, 2000)
     elif construtiva == "4":
         FPA_instance = Metodos.FPA(problema)
         solucao = FPA_instance.run()
