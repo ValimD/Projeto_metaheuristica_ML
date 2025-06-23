@@ -18,7 +18,7 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
     elif construtiva == "2":
         solucao = Metodos.gulosa(problema)
     elif construtiva == "3":
-        solucao = Metodos.PSO(problema, 30, 2, 2, 1, 2000)
+        solucao = Metodos.PSO(problema, 30, 2, 2, 1, 1000)
     elif construtiva == "4":
         FPA_instance = Metodos.FPA(problema)
         solucao = FPA_instance.run()
@@ -51,6 +51,9 @@ if __name__ == "__main__":
         print("Heurísticas de refinamento: 0 (nenhuma), 1 (melhor_vizinhanca), 2 (refinamento_cluster_vns)")
     else:
         try:
-            main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], float(sys.argv[5]))
+            seed = float(sys.argv[5])
         except (IndexError, ValueError):
             print("ERRO: Semente deve ser numérica.")
+            exit(1)
+
+        main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], seed)
