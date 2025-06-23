@@ -50,14 +50,19 @@ def inicializa_particula(problema: Processa.Problema, quantidade_corredores: int
 
     return particula
 
-def gera_populacao_incial(problema: Processa.Problema, total: int, percentuais: list, enxame: list, objetivos: list) -> Metodos.Solucao:
+def gera_populacao_incial(problema: Processa.Problema, total: int, percentual: float, enxame: list, objetivos: list) -> Metodos.Solucao:
     """
     Função responsável por gerar o enxame de partículas do PSO.
+
+    As partículas são geradas de diferentes formas:
+    - Aleatória ilimitada: 1 partícula será gerada dessa forma, sem limitação de corredores (a quantidade será gerada aleatoriamente).
+    - Construtiva: 1 partícula sera gerada de forma gulosa, e o restante será de forma híbrida. O parâmetro `percentual` dita a porcentagem da população total que será gerada dessa forma (mas sempre será gerado uma partícula gulosa).
+    - Aleatória limitada: o restante das partículas serão geradas de forma aleatória mas com um limite de corredores (no máximo 30% da quantidade total).
 
     Args:
         problema (Problema): Instância contendo os dados do problema (corredores, pedidos, limites).
         total (int): Quantidade total de partículas no enxame.
-        percentuais (list): Lista contendo dois elementos, entre 0 e 1. O primeiro indica a porcentagem do enxame inicial que será gerado totalmente aleatório, sem limite de quantidade, e o segundo indica a porcentagem que será gerado por meio da heurística construtiva híbrida (1 será pela heurística construtiva gulosa). O restante para dar 1, será gerado de forma aleatória mas com limite de quantidade.
+        percentual (float): Quantidade de partículas que serão geradas de forma construtiva (uma partícula será gerada pela gulosa, e o restante pela híbrida).
         enxame (list): Lista que irá salvar cada partícula.
         objetivos (list): Lista que irá salvar o valor da função objetivo de cada partícula.
 
@@ -68,11 +73,9 @@ def gera_populacao_incial(problema: Processa.Problema, total: int, percentuais: 
     corredores = [c for c in range(problema.a)]
 
     # Calculando a quantidade de partículas para cada percentual. Pelo menos uma partícula de cada será gerada.
-    aleatoria_ilimitada = math.floor(percentuais[0] * total)
-    if not aleatoria_ilimitada:
-        aleatoria_ilimitada = 1
+    aleatoria_ilimitada = 1
 
-    construtiva = math.floor(percentuais[1] * total)
+    construtiva = math.floor(percentual * total)
     if not construtiva:
         construtiva = 1
 
@@ -95,15 +98,14 @@ def gera_populacao_incial(problema: Processa.Problema, total: int, percentuais: 
             melhor_particula = enxame[i]["solucao"].clone()
 
     # Gerando população aleatória ilimitada.
-    for i in range(construtiva, construtiva + aleatoria_ilimitada):
-        quantidade = randint(1, problema.a)
+    quantidade = randint(1, problema.a)
 
-        particula = inicializa_particula(problema, quantidade, corredores)
+    particula = inicializa_particula(problema, quantidade, corredores)
 
-        objetivos.append(particula.objetivo)
-        enxame.append({"solucao": particula, "Xt": set(particula.corredores), "P": set(particula.corredores), "Op": particula.objetivo, "Vt_1": set(particula.corredores), "Vt": set(particula.corredores)})
-        if enxame[i]["solucao"].objetivo > melhor_particula.objetivo:
-            melhor_particula = enxame[i]["solucao"].clone()
+    objetivos.append(particula.objetivo)
+    enxame.append({"solucao": particula, "Xt": set(particula.corredores), "P": set(particula.corredores), "Op": particula.objetivo, "Vt_1": set(particula.corredores), "Vt": set(particula.corredores)})
+    if enxame[construtiva]["solucao"].objetivo > melhor_particula.objetivo:
+        melhor_particula = enxame[construtiva]["solucao"].clone()
 
     # Gerando população aleatória limitada.
     qnt_min = 1
@@ -184,7 +186,7 @@ def PSO(problema: Processa.Problema, tamanho_enxame: int, constante_cognitivo: i
     objetivos = []                                              # Lista com todas as funções objetivos do enxame atual, para o cálculo desvio padrão.
     enxame = []                                                 # Lista armazenando todas as partículas do enxame (dicionários).
 
-    melhor_particula = gera_populacao_incial(problema, tamanho_enxame, [0.1, 0.3], enxame, objetivos)
+    melhor_particula = gera_populacao_incial(problema, tamanho_enxame, 0.3, enxame, objetivos)
     melhor_posicao = set(melhor_particula.corredores)
 
     # Iniciando iterações.
@@ -198,7 +200,9 @@ def PSO(problema: Processa.Problema, tamanho_enxame: int, constante_cognitivo: i
 
         # Verificando inércia.
         if geracoes_sem_melhora == geracao_convergencia:
-            inercia = 0
+            geracoes_sem_melhora = 0
+            if inercia:
+                inercia -= 1
 
         # Calculando as velocidades.
         for i in range(tamanho_enxame):
@@ -271,9 +275,7 @@ def PSO(problema: Processa.Problema, tamanho_enxame: int, constante_cognitivo: i
                 melhor_particula = enxame[i]["solucao"].clone()
                 melhor_posicao = set(enxame[i]["Xt"])
 
-                inercia = 1
                 melhora = True
-                geracoes_sem_melhora = 0
 
             objetivos[i] = enxame[i]["solucao"].objetivo
 
