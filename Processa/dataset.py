@@ -2,13 +2,11 @@ import os
 
 class Problema():
     """
-    Realiza a leitura e o tratamento dos dados presentes em um arquivo de dataset. A classe carrega as informações referentes 
-    ao número de pedidos, itens e corredores, além dos detalhes de cada pedido e corredor, limites inferior e superior, 
-    e inicializa a estrutura que armazenará os resultados processados.
+    Realiza a leitura e o tratamento dos dados presentes em um arquivo de dataset. A classe carrega as informações referentes ao número de pedidos, itens e corredores, além dos detalhes de cada pedido e corredor, limites inferior e superior, e inicializa a estrutura que armazenará os resultados processados.
 
     Args:
-        dataset (str): Nome do dataset a ser tratado; espera-se que exista um arquivo com nome "<dataset>.txt" no diretório "Datasets".
-        arquivo (str): Nome do arquivo onde os resultados serão salvos no formato CSV.
+        dataset (str): Nome do dataset a ser tratado (espera-se que exista um arquivo com nome "<dataset>.txt" no diretório "Datasets").
+        arquivo (str): Nome do arquivo onde os resultados serão salvos no formato CSV e TXT.
 
     Atributos:
         o (int): Número total de pedidos presentes no dataset.
@@ -91,13 +89,33 @@ class Problema():
         print(f"| {self.result['dataset']} | {self.result['orders']} | {self.result['aisles']} | {self.result['objective']} | {self.result['time']} |")
         print()
 
-    def salvaResultado(self) -> None:
+    def salvaResultadoCSV(self) -> None:
         """
         Função responsável por salvar os resultados no arquivo csv.
 
         Formato: dataset,pedidos (separados por -),corredores (separados por -),valor da função objetivo,tempo de execução.
         """
 
-        with open(f"./Resultados/{self.arquivo}.csv", "+a") as file:
+        with open(f"./Resultados-csv/{self.arquivo}.csv", "+a") as file:
             file.write(f"{self.result['dataset']},{'-'.join(map(str, self.result['orders']))},{'-'.join(map(str, self.result['aisles']))},{self.result['objective']},{self.result['time']}\n")
+            file.close()
+
+    def salvaResultadoTXT(self) -> None:
+        """
+        Função responsável por salvar os resultados no arquivo txt, seguindo o formato para verificação do MeLi.
+
+        Formato:
+            - Primeira linha: inteiro n representando o número total de pedidos na wave.
+            - Próximas n linhas: cada linha contém um inteiro representando o índice do pedido.
+            - Linha seguinte: inteiro m representando o número total de corredores visitados.
+            - Próximas m linhas: cada linha contém um inteiro representando o índice do corredor.
+        """
+
+        with open(f"./Resultados-txt/{self.arquivo}.txt", "+w") as file:
+            file.write(str(len(self.result["orders"])) + "\n")
+            for o in self.result["orders"]:
+                file.write(str(o) + "\n")
+            file.write(str(len(self.result["aisles"])) + "\n")
+            for a in self.result["aisles"]:
+                file.write(str(a) + "\n")
             file.close()

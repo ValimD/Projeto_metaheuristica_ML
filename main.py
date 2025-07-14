@@ -39,9 +39,13 @@ def main(dataset, arquivo, construtiva, refinamento, semente):
     problema.result["objective"] = solucao.objetivo
     problema.result["time"] = solucao.tempo
 
+    problema.result["orders"].sort()
+    problema.result["aisles"].sort()
+
     # Imprimindo e salvando no arquivo.
     problema.imprimeResultados()
-    problema.salvaResultado()
+    problema.salvaResultadoCSV()
+    problema.salvaResultadoTXT()
 
 # Verificando argumentos e chamando a main.
 if __name__ == "__main__":
